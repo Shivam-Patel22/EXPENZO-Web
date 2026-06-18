@@ -250,7 +250,7 @@ html, body {
   transition: var(--transition-smooth);
   box-shadow: var(--shadow-premium);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .glass-card::before {
