@@ -15,10 +15,10 @@
         {% if user.is_authenticated %}
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
-            <div class="logo-container">
+            <a href="{% url 'dashboard' %}" class="logo-container" aria-label="Go to Dashboard">
                 <i data-lucide="wallet" class="logo-icon"></i>
                 <span class="logo-text">EXPENZO</span>
-            </div>
+            </a>
 
             <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; margin-top: 2rem;">
                 <nav class="nav-menu">
