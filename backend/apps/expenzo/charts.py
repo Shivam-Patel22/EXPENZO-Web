@@ -21,7 +21,7 @@ def generate_savings_gauge_chart(percent):
         ax.patch.set_alpha(0.0)
 
         # Set Colors
-        colors = ['#34d399', 'rgba(255,255,255,0.06)']
+        colors = ['#34d399', (1.0, 1.0, 1.0, 0.06)]
 
         # Donut plot
         ax.pie(
