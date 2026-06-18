@@ -236,7 +236,7 @@
                 {% if b.net > 0.01 %}
                   <span class="amount-receive" style="font-size: 1.1rem;">+₹{{ b.net|floatformat:2 }}</span>
                 {% elif b.net < -0.01 %}
-                  <span class="amount-pay" style="font-size: 1.1rem;">-₹{{ b.net|abs|floatformat:2 }}</span>
+                  <span class="amount-pay" style="font-size: 1.1rem;">-₹{{ b.abs_net|floatformat:2 }}</span>
                 {% else %}
                   <span style="color: var(--text-muted); font-size: 0.95rem;">Settled</span>
                 {% endif %}

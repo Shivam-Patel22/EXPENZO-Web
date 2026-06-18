@@ -306,11 +306,13 @@ def group_detail_view(request, group_id):
             
     balances_list = []
     for m in members:
+        net_val = round(net_balances[m.id], 2)
         balances_list.append({
             'userId': m.id,
             'name': m.first_name if m.first_name else m.username,
             'email': m.email,
-            'net': round(net_balances[m.id], 2)
+            'net': net_val,
+            'abs_net': abs(net_val)
         })
         
     # Debt Simplification Greedy Algorithm
