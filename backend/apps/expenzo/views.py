@@ -50,24 +50,16 @@ def dashboard_view(request):
         
     # Apply date filter for recent transactions
     filtered_expenses = expenses
-    start_of_today = django_timezone.make_aware(datetime(now.year, now.month, now.day, 0, 0, 0))
-    end_of_today = django_timezone.make_aware(datetime(now.year, now.month, now.day, 23, 59, 59))
     
     if filter_type == 'daily':
-        filtered_expenses = expenses.filter(date__gte=start_of_today, date__lte=end_of_today)
+        filtered_expenses = expenses.filter(date__date=now.date())
     elif filter_type == 'weekly':
-        seven_days_ago = start_of_today - timedelta(days=7)
-        filtered_expenses = expenses.filter(date__gte=seven_days_ago, date__lte=end_of_today)
+        seven_days_ago = now.date() - timedelta(days=7)
+        filtered_expenses = expenses.filter(date__date__gte=seven_days_ago, date__date__lte=now.date())
     elif filter_type == 'monthly':
-        start_of_month = django_timezone.make_aware(datetime(now.year, now.month, 1, 0, 0, 0))
-        # Last day of month
-        if now.month == 12:
-            end_of_month = django_timezone.make_aware(datetime(now.year + 1, 1, 1, 23, 59, 59)) - timedelta(days=1)
-        else:
-            end_of_month = django_timezone.make_aware(datetime(now.year, now.month + 1, 1, 23, 59, 59)) - timedelta(days=1)
-        filtered_expenses = expenses.filter(date__gte=start_of_month, date__lte=end_of_month)
+        filtered_expenses = expenses.filter(date__year=now.year, date__month=now.month)
         
-    recent_transactions = filtered_expenses[:5]
+    recent_transactions = filtered_expenses[:20]
     
     # Compute active month stats
     monthly_expenses = PersonalExpense.objects.filter(user=user, date__year=selected_year, date__month=selected_month_num)

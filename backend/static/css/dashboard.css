@@ -354,6 +354,27 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+/* Premium Scrollbar Style for transaction list */
+.transaction-list-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.transaction-list-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.transaction-list-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.transaction-list-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .transaction-item-row {
