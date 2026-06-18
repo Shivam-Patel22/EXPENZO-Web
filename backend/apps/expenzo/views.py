@@ -234,6 +234,7 @@ def recurring_view(request):
                 RecurringIncome.objects.create(user=user, name=name, amount=amount)
             elif new_type == 'expense':
                 RecurringExpense.objects.create(user=user, name=name, amount=amount)
+            recalculate_current_month(user)
         elif action == 'recalculate':
             recalculate_current_month(user)
         return redirect('recurring')
