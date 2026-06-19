@@ -7,7 +7,7 @@
     <title>{% block title %}EXPENZO - Financial Dashboard{% endblock %}</title>
     
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="{% static 'css/globals.css' %}">
+    <link rel="stylesheet" href="{% static 'css/globals.css' %}?v=2.5">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -73,16 +73,78 @@
         </aside>
         {% endif %}
 
-        <!-- Main Content Area -->
-        <main style="flex: 1; padding: 2rem; overflow-y: auto; height: 100vh;">
-            {% block content %}{% endblock %}
-        </main>
+        <div style="flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
+            <!-- Mobile Header (Hidden on Desktop) -->
+            <div class="mobile-header">
+                <button class="hamburger-btn" aria-label="Toggle navigation menu" aria-expanded="false" id="mobile-menu-btn">
+                    <span class="hamburger-line top"></span>
+                    <span class="hamburger-line middle"></span>
+                    <span class="hamburger-line bottom"></span>
+                </button>
+                <div class="mobile-header-logo">
+                    <i data-lucide="wallet" class="logo-icon" style="width: 20px; height: 20px;"></i>
+                    <span class="logo-text">EXPENZO</span>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <main id="main-content" style="flex: 1; padding: 2rem; overflow-y: auto;">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+
+        <!-- Sidebar Backdrop -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
     </div>
 
     <!-- Lucide Icon CDN Script -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebar = document.querySelector('.sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            const menuBtn = document.getElementById('mobile-menu-btn');
+            const navItems = document.querySelectorAll('.sidebar .nav-item, .sidebar .logo-container, .sidebar .btn-secondary');
+            
+            if (!sidebar || !menuBtn) return;
+
+            function openSidebar() {
+                sidebar.classList.add('open');
+                backdrop.classList.add('active');
+                menuBtn.classList.add('open');
+                menuBtn.setAttribute('aria-expanded', 'true');
+                document.body.style.overflow = 'hidden'; // Prevent body scroll
+            }
+
+            function closeSidebar() {
+                sidebar.classList.remove('open');
+                backdrop.classList.remove('active');
+                menuBtn.classList.remove('open');
+                menuBtn.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = ''; // Restore scroll
+            }
+
+            menuBtn.addEventListener('click', () => {
+                if (sidebar.classList.contains('open')) closeSidebar();
+                else openSidebar();
+            });
+
+            backdrop.addEventListener('click', closeSidebar);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                    closeSidebar();
+                }
+            });
+
+            // Close when clicking a nav item (on mobile)
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    if (window.innerWidth < 1024) closeSidebar();
+                });
+            });
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

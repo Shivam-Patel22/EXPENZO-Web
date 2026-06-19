@@ -17,7 +17,6 @@
         Back to Dashboard
       </a>
       <h1 class="page-title">Recurring Monthly Finance</h1>
-      <p class="page-subtitle">Configure income and expense templates applied automatically each month</p>
     </div>
 
     <form method="POST" action="{% url 'recurring' %}">
@@ -59,7 +58,7 @@
             type="text" 
             name="name"
             class="input-control" 
-            placeholder="e.g. Salary, House Rent, Gym Subscription" 
+            placeholder="e.g. Rent" 
             required
           />
         </div>
@@ -70,7 +69,7 @@
             type="number" 
             name="amount"
             class="input-control" 
-            placeholder="e.g. 15000" 
+            placeholder="Amount" 
             required
             min="0.01"
             step="0.01"

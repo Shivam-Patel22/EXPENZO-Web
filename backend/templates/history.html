@@ -139,6 +139,50 @@
     padding: 4rem 2rem;
     color: var(--text-secondary);
   }
+
+  @media (max-width: 768px) {
+    .month-expenses-content {
+      overflow-x: hidden;
+    }
+    .tx-table thead {
+      display: none;
+    }
+    .tx-table, .tx-table tbody, .tx-table tr, .tx-table td {
+      display: block;
+      width: 100%;
+    }
+    .tx-table tr {
+      margin-bottom: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.01);
+    }
+    .tx-table td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: right !important;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+    }
+    .tx-table td:last-child {
+      border-bottom: none;
+    }
+    .tx-table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      text-align: left;
+    }
+    .month-title-info {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -251,15 +295,15 @@
             <tbody>
               {% for exp in month.expenses %}
                 <tr style="cursor: pointer;" onclick="openEditPersonalModal('{{ exp.id }}', '{{ exp.amount }}', '{{ exp.description|escapejs }}', '{{ exp.category }}', '{{ exp.payment_method }}', '{{ exp.date|date:'Y-m-d' }}')">
-                  <td>{{ exp.date|date:"F d, Y" }}</td>
-                  <td style="font-weight: 500;">{{ exp.description }}</td>
-                  <td>
+                  <td data-label="Date">{{ exp.date|date:"F d, Y" }}</td>
+                  <td data-label="Description" style="font-weight: 500;">{{ exp.description }}</td>
+                  <td data-label="Category">
                     <span class="breakdown-pill" style="border: 1px solid {% if exp.category == 'Income' %}var(--accent-success){% else %}var(--accent-primary){% endif %}; width: fit-content; padding: 0.1rem 0.5rem;">
                       {{ exp.category }}
                     </span>
                   </td>
-                  <td>{{ exp.payment_method }}</td>
-                  <td style="text-align: right;" class="{% if exp.category == 'Income' %}amount-income{% else %}amount-expense{% endif %}">
+                  <td data-label="Payment Method">{{ exp.payment_method }}</td>
+                  <td data-label="Amount" style="text-align: right;" class="{% if exp.category == 'Income' %}amount-income{% else %}amount-expense{% endif %}">
                     {% if exp.category == 'Income' %}+{% else %}-{% endif %}₹{{ exp.amount|floatformat:2 }}
                   </td>
                 </tr>

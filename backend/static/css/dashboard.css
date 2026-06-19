@@ -53,7 +53,7 @@
 
 .dashboard-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, 3.2fr) minmax(320px, 1.1fr);
+  grid-template-columns: minmax(0, 3.2fr) minmax(min(100%, 320px), 1.1fr);
   gap: 1.75rem;
   align-items: start;
 }
@@ -73,7 +73,7 @@
 
 .top-cards-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 1.75rem;
 }
 
@@ -109,9 +109,10 @@
 }
 
 .balance-amount {
-  font-size: 2.5rem;
+  font-size: clamp(1.75rem, 8vw, 2.5rem);
   font-weight: 700;
   font-family: var(--font-heading);
+  word-break: break-all;
 }
 
 .cumulative-badge {
@@ -265,8 +266,8 @@
 }
 
 .pie-chart-wrapper {
-  width: 180px;
-  height: 180px;
+  width: clamp(140px, 40vw, 180px);
+  height: clamp(140px, 40vw, 180px);
   position: relative;
   display: flex;
   align-items: center;
@@ -276,15 +277,16 @@
 .legend-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 1rem;
-  min-width: 240px;
+  min-width: min(100%, 240px);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .legend-dot {
@@ -307,7 +309,8 @@
   margin-left: auto;
   font-size: 0.85rem;
   color: var(--text-primary);
-  white-space: nowrap;
+  text-align: right;
+  word-break: break-word;
 }
 
 .right-column {
@@ -438,5 +441,29 @@
 
 .btn-delete-item-action:hover {
   color: var(--accent-danger);
+}
+
+@media (max-width: 768px) {
+  .dashboard-nav-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .search-wrapper {
+    max-width: 100%;
+  }
+  .dashboard-actions-area {
+    width: 100%;
+  }
+  .spending-chart-section {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .legend-grid {
+    grid-template-columns: 1fr;
+    width: 100%;
+    min-width: 100%;
+  }
 }
 

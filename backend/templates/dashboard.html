@@ -4,7 +4,57 @@
 {% block title %}Overview - EXPENZO{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=2.4">
+<style>
+  /* UNIVERSAL MOBILE OVERRIDE - AGGRESSIVE FIX */
+  @media (max-width: 768px) {
+    /* Force everything to never exceed screen width */
+    html, body, .app-container, main {
+      width: 100% !important;
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+    }
+    
+    /* Force cards to fit perfectly inside the main padding */
+    .glass-card {
+      width: 100% !important;
+      max-width: calc(100vw - 2rem) !important;
+      overflow: hidden !important;
+    }
+
+    /* Force grids to act as fluid blocks */
+    .dashboard-main-grid, .left-column, .right-column, .top-cards-row {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    /* Force text to wrap, break, and squish */
+    .legend-item {
+      flex-wrap: wrap !important;
+      width: 100% !important;
+    }
+    .legend-label, .legend-value {
+      white-space: normal !important;
+      word-break: break-all !important;
+      max-width: 100% !important;
+    }
+    
+    /* Dynamically shrink massive fonts */
+    .balance-amount {
+      font-size: 2rem !important;
+      word-break: break-all !important;
+      white-space: normal !important;
+    }
+
+    /* Search bar width fix */
+    .dashboard-nav-row, .dashboard-actions-area, .search-wrapper {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}

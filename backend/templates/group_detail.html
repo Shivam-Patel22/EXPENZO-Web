@@ -121,7 +121,7 @@
   }
   .analytics-metric-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
   }
@@ -250,6 +250,82 @@
     text-align: center;
     padding: 4rem 2rem;
     color: var(--text-secondary);
+  }
+
+  @media (max-width: 768px) {
+    .month-expenses-content,
+    .member-balances-content,
+    .ledger-list-content {
+      overflow-x: hidden;
+    }
+    .tx-table thead {
+      display: none;
+    }
+    .tx-table, .tx-table tbody, .tx-table tr, .tx-table td {
+      display: block;
+      width: 100%;
+    }
+    .tx-table tr {
+      margin-bottom: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.01);
+    }
+    .tx-table td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: right !important;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.85rem;
+    }
+    .tx-table td:last-child {
+      border-bottom: none;
+    }
+    .tx-table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      text-align: left;
+    }
+    .member-row {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 1rem;
+    }
+    .member-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .member-balance-info {
+      text-align: left !important;
+    }
+  }
+
+  .member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.01);
+  }
+  .member-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .member-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .member-balance-info {
+    text-align: right;
   }
 </style>
 {% endblock %}
@@ -425,8 +501,8 @@
       
       <div style="display: flex; flex-direction: column; gap: 1rem;">
         {% for member in extended_members %}
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: rgba(255,255,255,0.01);">
-            <div style="display: flex; align-items: center; gap: 1rem;">
+          <div class="member-row">
+            <div class="member-info">
               {% if member.profile_pic %}
                 <img src="{{ member.profile_pic }}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
               {% else %}
@@ -449,8 +525,8 @@
               </div>
             </div>
             
-            <div style="display: flex; align-items: center; gap: 1.5rem;">
-              <div style="text-align: right;">
+            <div class="member-actions">
+              <div class="member-balance-info">
                 <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Net Balance</div>
                 <div style="font-size: 1.1rem; font-weight: 700; color: {% if member.net > 0 %}var(--accent-success){% elif member.net < 0 %}var(--accent-danger){% else %}var(--text-secondary){% endif %};">
                   {% if member.net > 0 %}+{% endif %}₹{{ member.net|floatformat:2 }}
@@ -623,14 +699,14 @@
               <tbody>
                 {% for exp in month.expenses %}
                   <tr>
-                    <td>{{ exp.date|date:"F d, Y" }}</td>
-                    <td style="font-weight: 500;">{{ exp.description }}</td>
-                    <td>
+                    <td data-label="Date">{{ exp.date|date:"F d, Y" }}</td>
+                    <td data-label="Description" style="font-weight: 500;">{{ exp.description }}</td>
+                    <td data-label="Category">
                       <span class="breakdown-pill" style="border: 1px solid var(--accent-primary); width: fit-content; padding: 0.1rem 0.5rem;">
                         {{ exp.category }}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Paid By">
                       {% if exp.payments.count > 1 %}
                         Multiple
                       {% elif exp.payments.count == 1 %}
@@ -639,7 +715,7 @@
                         {{ exp.paid_by.first_name|default:exp.paid_by.username }}
                       {% endif %}
                     </td>
-                    <td style="text-align: right;" class="amount-expense">
+                    <td data-label="Amount" style="text-align: right;" class="amount-expense">
                       ₹{{ exp.amount|floatformat:2 }}
                     </td>
                   </tr>
