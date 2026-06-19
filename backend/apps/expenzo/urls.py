@@ -22,5 +22,7 @@ urlpatterns = [
     path('api/groups/<int:group_id>/settlement/add/', views.add_settlement_api, name='api_add_settlement'),
     path('api/groups/<int:group_id>/delete/', views.delete_group_api, name='api_delete_group'),
     path('api/groups/<int:group_id>/edit/', views.edit_group_api, name='api_edit_group'),
+    path('api/groups/<int:group_id>/member/<int:member_id>/remove/', views.api_remove_member, name='api_remove_member'),
+    path('api/groups/<int:group_id>/leave/', views.api_leave_group, name='api_leave_group'),
     path('api/savings/save/', views.save_savings_goal_api, name='api_save_savings_goal'),
 ]
