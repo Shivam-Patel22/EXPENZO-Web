@@ -95,7 +95,7 @@ class GroupMember(models.Model):
 
 class GroupExpense(models.Model):
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='expenses')
-    paid_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='paid_group_expenses')
+    paid_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='paid_group_expenses', null=True, blank=True)
     amount = models.FloatField()
     description = models.CharField(max_length=255)
     category = models.CharField(max_length=100)
@@ -104,6 +104,15 @@ class GroupExpense(models.Model):
 
     def __str__(self):
         return f"{self.description} ({self.amount}) in {self.group.name}"
+
+class GroupExpensePayment(models.Model):
+    group_expense = models.ForeignKey(GroupExpense, on_delete=models.CASCADE, related_name='payments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='expense_payments')
+    amount = models.FloatField()
+
+    def __str__(self):
+        return f"{self.user.username} paid {self.amount} for {self.group_expense.description}"
+
 
 class GroupExpenseSplit(models.Model):
     group_expense = models.ForeignKey(GroupExpense, on_delete=models.CASCADE, related_name='splits')

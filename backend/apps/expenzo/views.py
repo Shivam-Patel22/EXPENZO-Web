@@ -11,7 +11,7 @@ import json
 from .models import (
     UserProfile, PersonalExpense, RecurringIncome, RecurringExpense,
     MonthlyRecurringProcessing, Group, GroupMember, GroupExpense,
-    GroupExpenseSplit, Settlement
+    GroupExpenseSplit, Settlement, GroupExpensePayment
 )
 from .recurring_processor import process_recurring_finance, recalculate_current_month
 from .charts import (
@@ -293,7 +293,16 @@ def group_detail_view(request, group_id):
     net_balances = {m.id: 0.0 for m in members}
     
     for exp in expenses:
-        net_balances[exp.paid_by_id] += exp.amount
+        payments = exp.payments.all()
+        if payments.exists():
+            for pmt in payments:
+                if pmt.user_id in net_balances:
+                    net_balances[pmt.user_id] += pmt.amount
+        elif exp.paid_by_id:
+            # Fallback for old data
+            if exp.paid_by_id in net_balances:
+                net_balances[exp.paid_by_id] += exp.amount
+                
         for split in exp.splits.all():
             if split.user_id in net_balances:
                 net_balances[split.user_id] -= split.amount
@@ -553,26 +562,42 @@ def add_group_expense_api(request, group_id):
             
             amount = float(body.get('amount'))
             description = body.get('description')
-            paid_by_id = body.get('paidBy')
+            payers = body.get('payers', []) # list of {userId, amount}
             payment_method = body.get('paymentMethod', 'UPI')
             split_type = body.get('splitType', 'EQUAL')
             splits_data = body.get('splits', []) # list of {userId, amount}
             date_str = body.get('date')
             
+            if not payers:
+                return JsonResponse({'error': 'At least one payer is required.'}, status=400)
+                
+            total_paid = sum(float(p['amount']) for p in payers)
+            if abs(total_paid - amount) > 0.01:
+                return JsonResponse({'error': f'Sum of payments ({total_paid}) must equal total amount ({amount}).'}, status=400)
+            
             txn_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else datetime.now()
             txn_date = django_timezone.make_aware(txn_date)
             
-            paid_by = get_object_or_404(User, id=paid_by_id)
+            first_payer = get_object_or_404(User, id=payers[0]['userId'])
             
             # Create group expense
             group_expense = GroupExpense.objects.create(
                 group=group,
-                paid_by=paid_by,
+                paid_by=first_payer, # fallback for older records
                 amount=amount,
                 description=description,
                 category="Group Expense",
                 date=txn_date
             )
+            
+            # Create GroupExpensePayment records
+            for p in payers:
+                u = get_object_or_404(User, id=p['userId'])
+                GroupExpensePayment.objects.create(
+                    group_expense=group_expense,
+                    user=u,
+                    amount=float(p['amount'])
+                )
             
             # Create splits
             if split_type == 'EQUAL':

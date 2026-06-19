@@ -5,6 +5,44 @@
 
 {% block extra_css %}
 <style>
+  /* Custom Toggle Switch */
+  .custom-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+  }
+  .custom-toggle input {
+    display: none;
+  }
+  .toggle-slider {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    transition: background-color 0.3s;
+  }
+  .toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+  }
+  .custom-toggle input:checked + .toggle-slider {
+    background-color: var(--accent-primary);
+  }
+  .custom-toggle input:checked + .toggle-slider::before {
+    transform: translateX(16px);
+  }
+
   .group-detail-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -193,7 +231,15 @@
                   <div>
                     <strong style="display: block; font-size: 0.95rem;">{{ exp.description }}</strong>
                     <span style="font-size: 0.75rem; color: var(--text-secondary);">
-                      Paid by {{ exp.paid_by.first_name|default:exp.paid_by.username }} • {{ exp.date|date:"F d, Y" }}
+                      Paid by 
+                      {% if exp.payments.count > 1 %}
+                        Multiple
+                      {% elif exp.payments.count == 1 %}
+                        {{ exp.payments.first.user.first_name|default:exp.payments.first.user.username }}
+                      {% else %}
+                        {{ exp.paid_by.first_name|default:exp.paid_by.username }}
+                      {% endif %}
+                      • {{ exp.date|date:"F d, Y" }}
                     </span>
                   </div>
                 </div>
@@ -432,12 +478,23 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">Paid By</label>
-          <select id="exp-paid-by" class="input-control" style="background: #0d121f;">
-            {% for m in members %}
-              <option value="{{ m.id }}">{{ m.first_name|default:m.username }}</option>
-            {% endfor %}
-          </select>
+          <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+            Paid By
+            <button type="button" onclick="addPayerRow()" style="background: none; border: none; color: var(--accent-primary); cursor: pointer; font-size: 0.8rem; font-weight: 600;">+ Add Another Payer</button>
+          </label>
+          <div id="payers-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="payer-row" style="display: flex; gap: 0.5rem; align-items: center;">
+              <select class="input-control payer-select" style="background: #0d121f; flex: 1;" required>
+                {% for m in members %}
+                  <option value="{{ m.id }}">{{ m.first_name|default:m.username }}</option>
+                {% endfor %}
+              </select>
+              <input type="number" class="input-control payer-amount" placeholder="Amount (₹)" style="width: 120px;" required min="0.01" step="0.01">
+              <button type="button" onclick="removePayerRow(this)" style="background: none; border: none; color: var(--accent-danger); cursor: pointer; padding: 0.25rem; visibility: hidden;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Split Method</label>
@@ -453,9 +510,10 @@
           <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--text-secondary);">Select participating members:</h4>
           {% for m in members %}
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;" class="split-member-row" id="split-row-{{ m.id }}">
-              <label style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+              <label class="custom-toggle">
                 <input type="checkbox" checked class="split-member-checkbox" value="{{ m.id }}">
-                {{ m.first_name|default:m.username }}
+                <span class="toggle-slider"></span>
+                <span>{{ m.first_name|default:m.username }}</span>
               </label>
               <!-- Exact / Percentage inputs (hidden by default) -->
               <input type="number" class="input-control split-custom-input exact-input" placeholder="₹" style="width: 80px; display: none; padding: 0.25rem 0.5rem; font-size: 0.85rem;" data-user-id="{{ m.id }}">
@@ -558,31 +616,74 @@
   }
 
   function toggleSplitInputs(type) {
-    const checkboxes = document.querySelectorAll('.split-member-checkbox');
+    const sliders = document.querySelectorAll('.toggle-slider');
     const exactInputs = document.querySelectorAll('.exact-input');
     const pctInputs = document.querySelectorAll('.pct-input');
 
     if (type === 'EQUAL') {
-      checkboxes.forEach(c => c.style.display = 'inline-block');
+      sliders.forEach(c => c.style.display = 'inline-block');
       exactInputs.forEach(i => i.style.display = 'none');
       pctInputs.forEach(i => i.style.display = 'none');
     } else if (type === 'EXACT') {
-      checkboxes.forEach(c => c.style.display = 'none');
+      sliders.forEach(c => c.style.display = 'none');
       exactInputs.forEach(i => i.style.display = 'block');
       pctInputs.forEach(i => i.style.display = 'none');
     } else if (type === 'PERCENTAGE') {
-      checkboxes.forEach(c => c.style.display = 'none');
+      sliders.forEach(c => c.style.display = 'none');
       exactInputs.forEach(i => i.style.display = 'none');
       pctInputs.forEach(i => i.style.display = 'block');
     }
+  }
+
+  function addPayerRow() {
+    const container = document.getElementById('payers-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'payer-row';
+    newRow.style = 'display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;';
+    newRow.innerHTML = `
+      <select class="input-control payer-select" style="background: #0d121f; flex: 1;" required>
+        {% for m in members %}
+          <option value="{{ m.id }}">{{ m.first_name|default:m.username }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" class="input-control payer-amount" placeholder="Amount (₹)" style="width: 120px;" required min="0.01" step="0.01">
+      <button type="button" onclick="removePayerRow(this)" style="background: none; border: none; color: var(--accent-danger); cursor: pointer; padding: 0.25rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+      </button>
+    `;
+    container.appendChild(newRow);
+  }
+
+  function removePayerRow(btn) {
+    btn.closest('.payer-row').remove();
   }
 
   async function submitExpense(e) {
     e.preventDefault();
     const amount = parseFloat(document.getElementById('exp-amount').value);
     const description = document.getElementById('exp-desc').value;
-    const paidBy = document.getElementById('exp-paid-by').value;
     const splitType = document.getElementById('exp-split-type').value;
+
+    let payers = [];
+    let sumPayers = 0;
+    document.querySelectorAll('.payer-row').forEach(row => {
+      const userId = row.querySelector('.payer-select').value;
+      const payerAmt = parseFloat(row.querySelector('.payer-amount').value) || 0;
+      if (payerAmt > 0) {
+        payers.push({ userId, amount: payerAmt });
+        sumPayers += payerAmt;
+      }
+    });
+
+    if (payers.length === 0) {
+      alert("Please enter at least one valid payment amount.");
+      return;
+    }
+
+    if (Math.abs(sumPayers - amount) > 0.05) {
+      alert(`Sum of payments (₹${sumPayers.toFixed(2)}) must equal total amount (₹${amount.toFixed(2)})`);
+      return;
+    }
 
     let splits = [];
     if (splitType === 'EQUAL') {
@@ -629,7 +730,7 @@
           'Content-Type': 'application/json',
           'X-CSRFToken': '{{ csrf_token }}'
         },
-        body: JSON.stringify({ amount, description, paidBy, splitType, splits, date: new Date().toISOString().split('T')[0] })
+        body: JSON.stringify({ amount, description, payers, splitType, splits, date: new Date().toISOString().split('T')[0] })
       });
       if (res.ok) {
         window.location.reload();
