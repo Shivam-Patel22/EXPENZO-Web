@@ -72,6 +72,39 @@
     margin-bottom: 1.25rem;
     color: var(--text-primary);
   }
+  .icon-option {
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(0) scale(1);
+  }
+  label:hover .icon-option {
+    transform: translateY(-2px) scale(1.02);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  input[type="radio"]:checked + .icon-option {
+    border-color: var(--accent-primary) !important;
+    background: rgba(37, 99, 235, 0.15) !important;
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 12px 20px -3px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  }
+  input[type="radio"]:checked + .icon-option i {
+    animation: iconBounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes iconBounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.25) translateY(-2px); }
+    100% { transform: scale(1) translateY(0); }
+  }
 </style>
 {% endblock %}
 
@@ -93,6 +126,9 @@
     {% for group in groups %}
       <a href="{% url 'group_detail' group_id=group.id %}" class="glass-card group-card">
         <div>
+          <div style="background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: var(--radius-md); display: inline-flex; margin-bottom: 1rem; border: 1px solid var(--border-color);">
+            <i data-lucide="{{ group.icon|default:'users' }}" style="width: 24px; height: 24px; color: var(--accent-primary);"></i>
+          </div>
           <h3 class="group-title">{{ group.name }}</h3>
           <p class="group-desc">{% if group.description %}{{ group.description }}{% else %}No description provided.{% endif %}</p>
         </div>
@@ -137,7 +173,43 @@
         ></textarea>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+      <div class="form-group">
+        <label class="form-label">Group Icon</label>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem;">
+          <label style="cursor: pointer; position: relative;">
+            <input type="radio" name="icon" value="users" checked style="display: none;">
+            <div class="icon-option">
+              <i data-lucide="users" style="width: 24px; height: 24px;"></i>
+            </div>
+          </label>
+          <label style="cursor: pointer; position: relative;">
+            <input type="radio" name="icon" value="home" style="display: none;">
+            <div class="icon-option">
+              <i data-lucide="home" style="width: 24px; height: 24px;"></i>
+            </div>
+          </label>
+          <label style="cursor: pointer; position: relative;">
+            <input type="radio" name="icon" value="plane" style="display: none;">
+            <div class="icon-option">
+              <i data-lucide="plane" style="width: 24px; height: 24px;"></i>
+            </div>
+          </label>
+          <label style="cursor: pointer; position: relative;">
+            <input type="radio" name="icon" value="briefcase" style="display: none;">
+            <div class="icon-option">
+              <i data-lucide="briefcase" style="width: 24px; height: 24px;"></i>
+            </div>
+          </label>
+          <label style="cursor: pointer; position: relative;">
+            <input type="radio" name="icon" value="coffee" style="display: none;">
+            <div class="icon-option">
+              <i data-lucide="coffee" style="width: 24px; height: 24px;"></i>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1.5rem;">
         <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
         Create Group
       </button>

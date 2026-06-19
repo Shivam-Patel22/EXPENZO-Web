@@ -247,10 +247,11 @@ def groups_view(request):
     if request.method == 'POST':
         name = request.POST.get('name')
         description = request.POST.get('description', '')
+        icon = request.POST.get('icon', 'users')
         
         # Create group and add creator as member
-        group = Group.objects.create(name=name, description=description, created_by=user)
-        GroupMember.objects.create(group=group, user=user)
+        group = Group.objects.create(name=name, description=description, icon=icon, created_by=user)
+        GroupMember.objects.create(group=group, user=user, role='ADMIN')
         return redirect('group_detail', group_id=group.id)
         
     memberships = GroupMember.objects.filter(user=user)
@@ -266,13 +267,18 @@ def group_detail_view(request, group_id):
     user = request.user
     group = get_object_or_404(Group, id=group_id)
     
-    # Verify membership
-    is_member = GroupMember.objects.filter(group=group, user=user).exists()
-    if not is_member:
+    # Verify membership and get role
+    membership = GroupMember.objects.filter(group=group, user=user).first()
+    if not membership:
         return render(request, '403.html', status=403)
+    user_role = membership.role
         
     # Handle adding new member
     if request.method == 'POST' and 'new_member_email' in request.POST:
+        if user_role != 'ADMIN':
+            context = {'group': group, 'error': "Only Admins can add members."}
+            return render(request, 'group_detail.html', context)
+            
         email = request.POST.get('new_member_email').strip()
         to_add = get_object_or_none(User, email=email)
         if to_add:
@@ -283,7 +289,7 @@ def group_detail_view(request, group_id):
             return render(request, 'group_detail.html', context)
         return redirect('group_detail', group_id=group.id)
         
-    memberships = GroupMember.objects.filter(group=group)
+    memberships = GroupMember.objects.filter(group=group).select_related('user', 'user__profile')
     members = [m.user for m in memberships]
     
     expenses = GroupExpense.objects.filter(group=group).order_by('-date')
@@ -368,7 +374,14 @@ def group_detail_view(request, group_id):
     total_spend = sum(exp.amount for exp in expenses)
     contributions = {m.id: 0.0 for m in members}
     for exp in expenses:
-        contributions[exp.paid_by_id] += exp.amount
+        payments = exp.payments.all()
+        if payments.exists():
+            for pmt in payments:
+                if pmt.user_id in contributions:
+                    contributions[pmt.user_id] += pmt.amount
+        else:
+            if exp.paid_by_id in contributions:
+                contributions[exp.paid_by_id] += exp.amount
         
     sorted_contribs = sorted(contributions.items(), key=lambda x: x[1], reverse=True)
     highest_contrib_name = "N/A"
@@ -427,9 +440,28 @@ def group_detail_view(request, group_id):
     
     active_tab = request.GET.get('tab', 'ledger') # ledger, balances, analytics
     
+    extended_members = []
+    for m in memberships:
+        net_val = round(net_balances[m.user.id], 2)
+        profile_pic = None
+        if hasattr(m.user, 'profile'):
+            profile_pic = m.user.profile.avatar
+        extended_members.append({
+            'id': m.user.id,
+            'name': m.user.first_name if m.user.first_name else m.user.username,
+            'email': m.user.email,
+            'role': m.role,
+            'joined_at': m.joined_at,
+            'net': net_val,
+            'abs_net': abs(net_val),
+            'profile_pic': profile_pic
+        })
+        
     context = {
         'group': group,
+        'user_role': user_role,
         'members': members,
+        'extended_members': extended_members,
         'expenses': expenses,
         'settlements': settlements,
         'balances': balances_list,
@@ -837,8 +869,9 @@ def delete_group_expense_api(request, group_id, expense_id):
 def delete_group_api(request, group_id):
     if request.method == 'POST' or request.method == 'DELETE':
         group = get_object_or_404(Group, id=group_id)
-        if group.created_by != request.user:
-            return JsonResponse({'error': 'Only the group creator can delete this group.'}, status=403)
+        membership = GroupMember.objects.filter(group=group, user=request.user).first()
+        if not membership or membership.role != 'ADMIN':
+            return JsonResponse({'error': 'Only Group Admins can delete this group.'}, status=403)
         group.delete()
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
@@ -849,9 +882,9 @@ def edit_group_api(request, group_id):
     if request.method == 'POST':
         try:
             group = get_object_or_404(Group, id=group_id)
-            is_member = GroupMember.objects.filter(group=group, user=request.user).exists()
-            if not is_member:
-                return JsonResponse({'error': 'Unauthorized'}, status=403)
+            membership = GroupMember.objects.filter(group=group, user=request.user).first()
+            if not membership or membership.role != 'ADMIN':
+                return JsonResponse({'error': 'Only Group Admins can edit group details.'}, status=403)
             body = json.loads(request.body)
             name = body.get('name', '').strip()
             description = body.get('description', '').strip()
@@ -863,4 +896,62 @@ def edit_group_api(request, group_id):
             return JsonResponse({'status': 'success'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'POST required'}, status=405)
+
+def get_user_group_balance(group, user_id):
+    expenses = GroupExpense.objects.filter(group=group)
+    settlements = Settlement.objects.filter(group=group)
+    net = 0.0
+    
+    for exp in expenses:
+        for pmt in exp.payments.all():
+            if pmt.user_id == user_id:
+                net += pmt.amount
+        if not exp.payments.exists() and exp.paid_by_id == user_id:
+            net += exp.amount
+            
+        for split in exp.splits.all():
+            if split.user_id == user_id:
+                net -= split.amount
+                
+    for setl in settlements:
+        if setl.from_user_id == user_id:
+            net += setl.amount
+        if setl.to_user_id == user_id:
+            net -= setl.amount
+            
+    return round(net, 2)
+
+@csrf_exempt
+@login_required
+def api_remove_member(request, group_id, member_id):
+    if request.method == 'POST':
+        group = get_object_or_404(Group, id=group_id)
+        admin_membership = GroupMember.objects.filter(group=group, user=request.user).first()
+        if not admin_membership or admin_membership.role != 'ADMIN':
+            return JsonResponse({'error': 'Only Admins can remove members.'}, status=403)
+            
+        target_membership = get_object_or_404(GroupMember, group=group, user_id=member_id)
+        
+        balance = get_user_group_balance(group, member_id)
+        if abs(balance) > 0.01:
+            return JsonResponse({'error': f'This member cannot be removed until all balances are settled. Current balance: ₹{balance}'}, status=400)
+            
+        target_membership.delete()
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'error': 'POST required'}, status=405)
+
+@csrf_exempt
+@login_required
+def api_leave_group(request, group_id):
+    if request.method == 'POST':
+        group = get_object_or_404(Group, id=group_id)
+        membership = get_object_or_404(GroupMember, group=group, user=request.user)
+        
+        balance = get_user_group_balance(group, request.user.id)
+        if abs(balance) > 0.01:
+            return JsonResponse({'error': f'Please settle all balances before leaving the group. Current balance: ₹{balance}'}, status=400)
+            
+        membership.delete()
+        return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST required'}, status=405)
