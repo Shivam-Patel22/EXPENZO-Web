@@ -457,6 +457,61 @@ def group_detail_view(request, group_id):
             'profile_pic': profile_pic
         })
         
+    # --- Expense History Logic ---
+    history_expenses = expenses
+    search_query = request.GET.get('search', '').strip()
+    category_filter = request.GET.get('category', 'All')
+
+    if search_query:
+        history_expenses = history_expenses.filter(description__icontains=search_query)
+    if category_filter != 'All':
+        history_expenses = history_expenses.filter(category=category_filter)
+
+    categories = ["Income", "Food", "Travel", "Shopping", "Entertainment", "Rent", "Utilities", "Health", "Education", "Investment", "Others"]
+
+    from collections import defaultdict
+    from datetime import datetime
+    grouped_data = defaultdict(list)
+    for exp in history_expenses:
+        key = exp.date.strftime("%Y-%m")
+        grouped_data[key].append(exp)
+
+    grouped_months = []
+    CATEGORY_COLORS = {
+        "Food": "#34d399", "Travel": "#fb7185", "Shopping": "#fbbf24",
+        "Entertainment": "#a78bfa", "Rent": "#22d3ee", "Utilities": "#f472b6",
+        "Health": "#a7f3d0", "Education": "#c084fc", "Investment": "#818cf8",
+        "Others": "#94a3b8"
+    }
+
+    for key in sorted(grouped_data.keys(), reverse=True):
+        exps = grouped_data[key]
+        year, month = map(int, key.split('-'))
+        label = datetime(year, month, 1).strftime("%B %Y")
+        
+        total_month_spend = sum(e.amount for e in exps if e.category != "Income")
+        
+        category_sums = {}
+        for e in exps:
+            if e.category != "Income":
+                category_sums[e.category] = category_sums.get(e.category, 0) + e.amount
+                
+        breakdown = []
+        for cat_name, cat_val in category_sums.items():
+            breakdown.append({
+                'name': cat_name,
+                'amount': cat_val,
+                'color': CATEGORY_COLORS.get(cat_name, '#94a3b8')
+            })
+            
+        grouped_months.append({
+            'key': key,
+            'label': label,
+            'expenses': exps,
+            'total_spend': total_month_spend,
+            'category_breakdown': breakdown
+        })
+        
     context = {
         'group': group,
         'user_role': user_role,
@@ -474,7 +529,11 @@ def group_detail_view(request, group_id):
         'net_standing_chart': net_standing_chart,
         'total_settled': total_settled,
         'settlement_ratio': settlement_ratio,
-        'active_tab': active_tab
+        'active_tab': active_tab,
+        'grouped_months': grouped_months,
+        'categories': categories,
+        'search_query': search_query,
+        'selected_category': category_filter,
     }
     return render(request, 'group_detail.html', context)
 
@@ -612,13 +671,28 @@ def add_group_expense_api(request, group_id):
             
             first_payer = get_object_or_404(User, id=payers[0]['userId'])
             
+            desc_lower = description.lower()
+            guessed_category = "Others"
+            if any(w in desc_lower for w in ["food", "grocery", "dinner", "lunch", "restaurant", "cafe"]):
+                guessed_category = "Food"
+            elif any(w in desc_lower for w in ["travel", "cab", "trip", "fuel", "car", "flight"]):
+                guessed_category = "Travel"
+            elif any(w in desc_lower for w in ["rent", "flat", "room"]):
+                guessed_category = "Rent"
+            elif any(w in desc_lower for w in ["electricity", "bill", "water", "utility"]):
+                guessed_category = "Utilities"
+            elif any(w in desc_lower for w in ["movie", "concert", "show", "party", "entertainment"]):
+                guessed_category = "Entertainment"
+            elif any(w in desc_lower for w in ["shop", "clothes", "shoes", "mall"]):
+                guessed_category = "Shopping"
+                
             # Create group expense
             group_expense = GroupExpense.objects.create(
                 group=group,
                 paid_by=first_payer, # fallback for older records
                 amount=amount,
                 description=description,
-                category="Group Expense",
+                category=guessed_category,
                 date=txn_date
             )
             
