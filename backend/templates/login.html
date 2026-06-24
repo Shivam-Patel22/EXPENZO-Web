@@ -16,7 +16,12 @@
 
     {% if error %}
       <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid var(--accent-danger); color: var(--accent-danger); padding: 0.75rem 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.9rem;">
-        {{ error }}
+        {{ error|linebreaksbr }}
+      </div>
+    {% endif %}
+    {% if message %}
+      <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-success); color: var(--accent-success); padding: 0.75rem 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.9rem;">
+        {{ message|linebreaksbr }}
       </div>
     {% endif %}
 

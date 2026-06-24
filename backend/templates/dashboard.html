@@ -253,9 +253,9 @@
                     {{ exp.description }}
                   </div>
                   <div class="transaction-meta-row" style="font-size: 0.75rem; color: var(--text-secondary); display: flex; gap: 0.5rem; align-items: center;">
-                    <span>{{ exp.category }}</span>
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ exp.category }}</span>
                     <span>•</span>
-                    <span>{{ exp.date|date:"j M" }}</span>
+                    <span style="white-space: nowrap;">{{ exp.date|date:"j M" }}</span>
                   </div>
                 </div>
               </div>

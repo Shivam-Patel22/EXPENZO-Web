@@ -8,6 +8,16 @@ from django.utils import timezone as django_timezone
 from datetime import datetime, timedelta
 import json
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.utils.html import strip_tags
+from django.core.mail import send_mail
+from django.urls import reverse
+from django.core.cache import cache
+
 from .models import (
     UserProfile, PersonalExpense, RecurringIncome, RecurringExpense,
     MonthlyRecurringProcessing, Group, GroupMember, GroupExpense,
@@ -38,8 +48,8 @@ def dashboard_view(request):
     selected_month_num = now.month
     
     # Get filters
-    filter_type = request.GET.get('filter', 'all') # all, daily, weekly, monthly
-    search_query = request.GET.get('search', '').strip()
+    filter_type = strip_tags(request.GET.get('filter', 'all'))
+    search_query = strip_tags(request.GET.get('search', '').strip())[:100]
     
     # Fetch all personal expenses
     expenses = PersonalExpense.objects.filter(user=user).order_by('-date')
@@ -134,9 +144,9 @@ def history_view(request):
     user = request.user
     
     # Get filters
-    search_query = request.GET.get('search', '').strip()
-    category_filter = request.GET.get('category', 'All').strip()
-    payment_filter = request.GET.get('paymentMethod', 'All').strip()
+    search_query = strip_tags(request.GET.get('search', '').strip())[:100]
+    category_filter = strip_tags(request.GET.get('category', 'All').strip())[:50]
+    payment_filter = strip_tags(request.GET.get('paymentMethod', 'All').strip())[:50]
     
     expenses = PersonalExpense.objects.filter(user=user).order_by('-date')
     
@@ -219,13 +229,17 @@ def recurring_view(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'add':
-            new_type = request.POST.get('type')
-            name = request.POST.get('name')
-            amount = float(request.POST.get('amount', 0))
-            if new_type == 'income':
-                RecurringIncome.objects.create(user=user, name=name, amount=amount)
-            elif new_type == 'expense':
-                RecurringExpense.objects.create(user=user, name=name, amount=amount)
+            new_type = strip_tags(request.POST.get('type', ''))
+            name = strip_tags(request.POST.get('name', ''))[:100]
+            try:
+                amount = float(request.POST.get('amount', 0))
+            except (ValueError, TypeError):
+                amount = 0.0
+            if amount > 0:
+                if new_type == 'income':
+                    RecurringIncome.objects.create(user=user, name=name, amount=amount)
+                elif new_type == 'expense':
+                    RecurringExpense.objects.create(user=user, name=name, amount=amount)
             recalculate_current_month(user)
         elif action == 'recalculate':
             recalculate_current_month(user)
@@ -245,10 +259,13 @@ def groups_view(request):
     user = request.user
     
     if request.method == 'POST':
-        name = request.POST.get('name')
-        description = request.POST.get('description', '')
-        icon = request.POST.get('icon', 'users')
+        name = strip_tags(request.POST.get('name', ''))[:100]
+        description = strip_tags(request.POST.get('description', ''))[:500]
+        icon = strip_tags(request.POST.get('icon', 'users'))[:50]
         
+        if not name:
+            return redirect('groups')
+            
         # Create group and add creator as member
         group = Group.objects.create(name=name, description=description, icon=icon, created_by=user)
         GroupMember.objects.create(group=group, user=user, role='ADMIN')
@@ -279,7 +296,7 @@ def group_detail_view(request, group_id):
             context = {'group': group, 'error': "Only Admins can add members."}
             return render(request, 'group_detail.html', context)
             
-        email = request.POST.get('new_member_email').strip()
+        email = strip_tags(request.POST.get('new_member_email', '')).strip()[:200]
         to_add = get_object_or_none(User, email=email)
         if to_add:
             GroupMember.objects.get_or_create(group=group, user=to_add)
@@ -438,7 +455,7 @@ def group_detail_view(request, group_id):
     total_settled = sum(setl.amount for setl in settlements)
     settlement_ratio = round(total_settled / total_spend, 2) if total_spend > 0 else 0.0
     
-    active_tab = request.GET.get('tab', 'ledger') # ledger, balances, analytics
+    active_tab = strip_tags(request.GET.get('tab', 'ledger'))[:50] # ledger, balances, analytics
     
     extended_members = []
     for m in memberships:
@@ -459,8 +476,8 @@ def group_detail_view(request, group_id):
         
     # --- Expense History Logic ---
     history_expenses = expenses
-    search_query = request.GET.get('search', '').strip()
-    category_filter = request.GET.get('category', 'All')
+    search_query = strip_tags(request.GET.get('search', '').strip())[:100]
+    category_filter = strip_tags(request.GET.get('category', 'All'))[:50]
 
     if search_query:
         history_expenses = history_expenses.filter(description__icontains=search_query)
@@ -543,12 +560,12 @@ def profile_view(request):
     profile = user.profile
     
     if request.method == 'POST':
-        profile.phone = request.POST.get('phone', '')
-        profile.bio = request.POST.get('bio', '')
-        profile.country = request.POST.get('country', 'India')
+        profile.phone = strip_tags(request.POST.get('phone', ''))[:20]
+        profile.bio = strip_tags(request.POST.get('bio', ''))[:500]
+        profile.country = strip_tags(request.POST.get('country', 'India'))[:100]
         profile.save()
         
-        user.first_name = request.POST.get('name', user.first_name)
+        user.first_name = strip_tags(request.POST.get('name', user.first_name))[:150]
         user.save()
         return redirect('profile')
         
@@ -562,13 +579,17 @@ def add_expense_api(request):
     if request.method == 'POST':
         try:
             body = json.loads(request.body)
-            amount = float(body.get('amount'))
+            try:
+                amount = float(body.get('amount'))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid amount.'}, status=400)
+                
             if amount <= 0:
                 return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
-            category = body.get('category')
-            payment_method = body.get('paymentMethod')
-            description = body.get('description')
-            date_str = body.get('date')
+            category = strip_tags(body.get('category', ''))[:50]
+            payment_method = strip_tags(body.get('paymentMethod', ''))[:50]
+            description = strip_tags(body.get('description', ''))[:250]
+            date_str = strip_tags(body.get('date', ''))[:20]
             
             txn_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else datetime.now()
             txn_date = django_timezone.make_aware(txn_date)
@@ -589,6 +610,8 @@ def add_expense_api(request):
                 year=txn_date.year
             )
             return JsonResponse({'id': expense.id, 'status': 'success'}, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
@@ -599,13 +622,17 @@ def edit_expense_api(request, expense_id):
         try:
             expense = get_object_or_404(PersonalExpense, id=expense_id, user=request.user)
             body = json.loads(request.body)
-            amount = float(body.get('amount'))
+            try:
+                amount = float(body.get('amount'))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid amount.'}, status=400)
+                
             if amount <= 0:
                 return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
-            category = body.get('category')
-            payment_method = body.get('paymentMethod')
-            description = body.get('description')
-            date_str = body.get('date')
+            category = strip_tags(body.get('category', ''))[:50]
+            payment_method = strip_tags(body.get('paymentMethod', ''))[:50]
+            description = strip_tags(body.get('description', ''))[:250]
+            date_str = strip_tags(body.get('date', ''))[:20]
             
             txn_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else datetime.now()
             txn_date = django_timezone.make_aware(txn_date)
@@ -619,6 +646,8 @@ def edit_expense_api(request, expense_id):
             
             recalculate_current_month(request.user)
             return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
@@ -651,8 +680,11 @@ def edit_recurring_api(request, item_id, item_type):
     if request.method == 'POST' or request.method == 'PUT':
         try:
             body = json.loads(request.body)
-            name = body.get('name')
-            amount = float(body.get('amount'))
+            name = strip_tags(body.get('name', ''))[:100]
+            try:
+                amount = float(body.get('amount'))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid amount.'}, status=400)
             
             if item_type == 'income':
                 item = get_object_or_404(RecurringIncome, id=item_id, user=request.user)
@@ -667,6 +699,8 @@ def edit_recurring_api(request, item_id, item_type):
             
             recalculate_current_month(request.user)
             return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
@@ -680,13 +714,17 @@ def add_group_expense_api(request, group_id):
                 return JsonResponse({'error': 'Unauthorized: You are not a member of this group'}, status=403)
             body = json.loads(request.body)
             
-            amount = float(body.get('amount'))
-            description = body.get('description')
+            try:
+                amount = float(body.get('amount'))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid amount.'}, status=400)
+                
+            description = strip_tags(body.get('description', ''))[:250]
             payers = body.get('payers', []) # list of {userId, amount}
-            payment_method = body.get('paymentMethod', 'UPI')
-            split_type = body.get('splitType', 'EQUAL')
+            payment_method = strip_tags(body.get('paymentMethod', 'UPI'))[:50]
+            split_type = strip_tags(body.get('splitType', 'EQUAL'))[:50]
             splits_data = body.get('splits', []) # list of {userId, amount}
-            date_str = body.get('date')
+            date_str = strip_tags(body.get('date', ''))[:20]
             
             if amount <= 0:
                 return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
@@ -768,6 +806,8 @@ def add_group_expense_api(request, group_id):
                     )
                     
             return JsonResponse({'status': 'success'}, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
@@ -782,12 +822,16 @@ def edit_group_expense_api(request, group_id, expense_id):
             group_expense = get_object_or_404(GroupExpense, id=expense_id, group=group)
             body = json.loads(request.body)
             
-            amount = float(body.get('amount'))
-            description = body.get('description')
+            try:
+                amount = float(body.get('amount'))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid amount.'}, status=400)
+                
+            description = strip_tags(body.get('description', ''))[:250]
             payers = body.get('payers', [])
-            split_type = body.get('splitType', 'EQUAL')
+            split_type = strip_tags(body.get('splitType', 'EQUAL'))[:50]
             splits_data = body.get('splits', [])
-            date_str = body.get('date')
+            date_str = strip_tags(body.get('date', ''))[:20]
             
             if amount <= 0:
                 return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
@@ -842,6 +886,8 @@ def edit_group_expense_api(request, group_id, expense_id):
                     GroupExpenseSplit.objects.create(group_expense=group_expense, user=u, amount=share)
                     
             return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
@@ -857,7 +903,10 @@ def add_settlement_api(request, group_id):
             
             from_user_id = body.get('fromUserId')
             to_user_id = body.get('toUserId')
-            amount = float(body.get('amount'))
+            try:
+                amount = float(body.get('amount'))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid amount.'}, status=400)
             if amount <= 0:
                 return JsonResponse({'error': 'Settlement amount must be greater than zero.'}, status=400)
             
@@ -872,6 +921,8 @@ def add_settlement_api(request, group_id):
                 is_settled=True
             )
             return JsonResponse({'status': 'success'}, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
@@ -881,8 +932,11 @@ def save_savings_goal_api(request):
     if request.method == 'POST':
         try:
             body = json.loads(request.body)
-            target = float(body.get('target', 0))
-            current = float(body.get('current', 0))
+            try:
+                target = float(body.get('target', 0))
+                current = float(body.get('current', 0))
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Invalid float value.'}, status=400)
             
             profile = request.user.profile
             profile.savings_target = target
@@ -890,6 +944,8 @@ def save_savings_goal_api(request):
             profile.save()
             
             return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
@@ -898,8 +954,8 @@ def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     if request.method == 'POST':
-        name = request.POST.get('name')
-        email = request.POST.get('email')
+        name = strip_tags(request.POST.get('name', ''))[:100]
+        email = strip_tags(request.POST.get('email', '')).strip()[:200]
         password = request.POST.get('password')
         confirm_pass = request.POST.get('confirm_password')
         
@@ -909,26 +965,81 @@ def register_view(request):
         if User.objects.filter(email=email).exists() or User.objects.filter(username=email).exists():
             return render(request, 'register.html', {'error': 'User with this email already exists'})
             
+        # Enforce password policies
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            return render(request, 'register.html', {'error': '\n'.join(e.messages)})
+            
         user = User.objects.create_user(username=email, email=email, password=password)
         user.first_name = name
+        user.is_active = False # Require email activation
         user.save()
         
+        # Send activation email
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        activation_link = request.build_absolute_uri(
+            reverse('activate_account', kwargs={'uidb64': uid, 'token': token})
+        )
+        
+        try:
+            send_mail(
+                'Activate your Expenzo Account',
+                f'Hi {name},\n\nPlease click the link below to activate your account:\n{activation_link}',
+                'noreply@expenzo.local',
+                [email],
+                fail_silently=False,
+            )
+            return render(request, 'login.html', {'message': 'Registration successful! Please check your console/terminal to activate your account.'})
+        except Exception as e:
+            # Fallback if email sending fails completely
+            user.is_active = True
+            user.save()
+            login(request, user)
+            return redirect('dashboard')
+            
+    return render(request, 'register.html')
+
+def activate_account(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        user.is_active = True
+        user.save()
         login(request, user)
         return redirect('dashboard')
-    return render(request, 'register.html')
+    else:
+        return render(request, 'login.html', {'error': 'Activation link is invalid or has expired.'})
 
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     if request.method == 'POST':
-        email = request.POST.get('email')
+        email = strip_tags(request.POST.get('email', '')).strip()[:200]
         password = request.POST.get('password')
         
+        # Rate Limiting Logic (Lockout 15 minutes after 5 failed attempts)
+        ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
+        cache_key = f"login_attempts_{ip}"
+        attempts = cache.get(cache_key, 0)
+        
+        if attempts >= 5:
+            return render(request, 'login.html', {'error': 'Too many failed login attempts. Please try again in 15 minutes.'})
+            
         user = authenticate(request, username=email, password=password)
         if user is not None:
+            if not user.is_active:
+                return render(request, 'login.html', {'error': 'Account is not activated. Please check your email / console for the link.'})
+            cache.delete(cache_key) # Reset attempts on success
             login(request, user)
             return redirect('dashboard')
         else:
+            cache.set(cache_key, attempts + 1, timeout=900) # 15 minutes lock
             return render(request, 'login.html', {'error': 'Invalid credentials'})
     return render(request, 'login.html')
 
@@ -968,14 +1079,16 @@ def edit_group_api(request, group_id):
             if not membership or membership.role != 'ADMIN':
                 return JsonResponse({'error': 'Only Group Admins can edit group details.'}, status=403)
             body = json.loads(request.body)
-            name = body.get('name', '').strip()
-            description = body.get('description', '').strip()
+            name = strip_tags(body.get('name', '')).strip()[:100]
+            description = strip_tags(body.get('description', '')).strip()[:500]
             if not name:
                 return JsonResponse({'error': 'Group name is required'}, status=400)
             group.name = name
             group.description = description
             group.save()
             return JsonResponse({'status': 'success'})
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)

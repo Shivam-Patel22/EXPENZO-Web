@@ -120,3 +120,17 @@ STATICFILES_DIRS = [
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# --- SECURITY & AUTHENTICATION CONFIGURATION ---
+
+# Session Expiration (1 hour)
+SESSION_COOKIE_AGE = 3600
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_HTTPONLY = True
+
+# Password Reset Token Timeout (1 hour)
+PASSWORD_RESET_TIMEOUT = 3600
+
+# Email Backend (Output to console for development)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@expenzo.local'
