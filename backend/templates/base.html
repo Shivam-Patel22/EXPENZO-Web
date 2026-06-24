@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="EXPENZO - A premium dashboard to track personal expenses, split group bills, and automate your recurring finances seamlessly.">
+    <meta name="keywords" content="finance, budget, expense tracker, split bills, recurring finance, personal wealth">
+    <meta name="theme-color" content="#12121a">
     <title>{% block title %}EXPENZO - Financial Dashboard{% endblock %}</title>
     
     <!-- Custom Style Sheet -->
@@ -88,7 +91,7 @@
             </div>
 
             <!-- Main Content Area -->
-            <main id="main-content" style="flex: 1; padding: 2rem; overflow-y: auto;">
+            <main id="main-content" role="main" tabindex="-1" style="flex: 1; padding: 2rem; overflow-y: auto;">
                 {% block content %}{% endblock %}
             </main>
         </div>

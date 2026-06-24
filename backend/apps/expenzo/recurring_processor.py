@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.utils import timezone as django_timezone
 from .models import PersonalExpense, RecurringIncome, RecurringExpense, MonthlyRecurringProcessing
 
@@ -25,54 +25,45 @@ def process_recurring_finance(user):
         # Loop through each month up to the current calendar month
         while y < curr_year or (y == curr_year and m <= curr_month):
             already_processed = MonthlyRecurringProcessing.objects.filter(
-                user=user,
-                month=m,
-                year=y
+                user=user, month=m, year=y
             ).exists()
 
             if not already_processed:
-                with transaction.atomic():
-                    # Fetch active recurring items
-                    active_incomes = RecurringIncome.objects.filter(user=user, is_active=True)
-                    active_expenses = RecurringExpense.objects.filter(user=user, is_active=True)
-
-                    # First day of that month in UTC/aware datetime
-                    process_date = django_timezone.make_aware(datetime(y, m, 1, 0, 0, 0))
-
-                    # Insert income entries
-                    for inc in active_incomes:
-                        PersonalExpense.objects.create(
+                try:
+                    with transaction.atomic():
+                        # Create processing record FIRST to act as a database lock
+                        # If a concurrent request is processing this month, this will throw IntegrityError
+                        MonthlyRecurringProcessing.objects.create(
                             user=user,
-                            amount=inc.amount,
-                            category="Income",
-                            payment_method="Net Banking",
-                            description=f"Fixed Income: {inc.name}",
-                            date=process_date,
                             month=m,
-                            year=y,
-                            is_recurring=True
+                            year=y
                         )
+                        
+                        # Fetch active recurring items
+                        active_incomes = RecurringIncome.objects.filter(user=user, is_active=True)
+                        active_expenses = RecurringExpense.objects.filter(user=user, is_active=True)
 
-                    # Insert expense entries
-                    for exp in active_expenses:
-                        PersonalExpense.objects.create(
-                            user=user,
-                            amount=exp.amount,
-                            category="Others",
-                            payment_method="Cash",
-                            description=f"Fixed Expense: {exp.name}",
-                            date=process_date,
-                            month=m,
-                            year=y,
-                            is_recurring=True
-                        )
+                        # First day of that month in UTC/aware datetime
+                        process_date = django_timezone.make_aware(datetime(y, m, 1, 0, 0, 0))
 
-                    # Create processing record
-                    MonthlyRecurringProcessing.objects.create(
-                        user=user,
-                        month=m,
-                        year=y
-                    )
+                        # Insert income entries
+                        for inc in active_incomes:
+                            PersonalExpense.objects.create(
+                                user=user, amount=inc.amount, category="Income",
+                                payment_method="Net Banking", description=f"Fixed Income: {inc.name}",
+                                date=process_date, month=m, year=y, is_recurring=True
+                            )
+
+                        # Insert expense entries
+                        for exp in active_expenses:
+                            PersonalExpense.objects.create(
+                                user=user, amount=exp.amount, category="Others",
+                                payment_method="Cash", description=f"Fixed Expense: {exp.name}",
+                                date=process_date, month=m, year=y, is_recurring=True
+                            )
+                except IntegrityError:
+                    # A concurrent process already created the MonthlyRecurringProcessing record
+                    pass
 
             # Advance one month
             m += 1

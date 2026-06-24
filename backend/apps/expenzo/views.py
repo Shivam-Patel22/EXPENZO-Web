@@ -254,7 +254,7 @@ def groups_view(request):
         GroupMember.objects.create(group=group, user=user, role='ADMIN')
         return redirect('group_detail', group_id=group.id)
         
-    memberships = GroupMember.objects.filter(user=user)
+    memberships = GroupMember.objects.filter(user=user).select_related('group')
     groups = [m.group for m in memberships]
     
     context = {
@@ -292,8 +292,8 @@ def group_detail_view(request, group_id):
     memberships = GroupMember.objects.filter(group=group).select_related('user', 'user__profile')
     members = [m.user for m in memberships]
     
-    expenses = GroupExpense.objects.filter(group=group).order_by('-date')
-    settlements = Settlement.objects.filter(group=group).order_by('-date')
+    expenses = GroupExpense.objects.filter(group=group).select_related('paid_by').prefetch_related('payments__user', 'splits__user').order_by('-date')
+    settlements = Settlement.objects.filter(group=group).select_related('from_user', 'to_user').order_by('-date')
     
     # Compute Net Balances
     net_balances = {m.id: 0.0 for m in members}
@@ -557,13 +557,14 @@ def profile_view(request):
     }
     return render(request, 'profile.html', context)
 
-@csrf_exempt
 @login_required
 def add_expense_api(request):
     if request.method == 'POST':
         try:
             body = json.loads(request.body)
             amount = float(body.get('amount'))
+            if amount <= 0:
+                return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
             category = body.get('category')
             payment_method = body.get('paymentMethod')
             description = body.get('description')
@@ -592,7 +593,6 @@ def add_expense_api(request):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
-@csrf_exempt
 @login_required
 def edit_expense_api(request, expense_id):
     if request.method == 'POST' or request.method == 'PUT':
@@ -600,6 +600,8 @@ def edit_expense_api(request, expense_id):
             expense = get_object_or_404(PersonalExpense, id=expense_id, user=request.user)
             body = json.loads(request.body)
             amount = float(body.get('amount'))
+            if amount <= 0:
+                return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
             category = body.get('category')
             payment_method = body.get('paymentMethod')
             description = body.get('description')
@@ -621,7 +623,6 @@ def edit_expense_api(request, expense_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
 
-@csrf_exempt
 @login_required
 def delete_expense_api(request, expense_id):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -630,7 +631,6 @@ def delete_expense_api(request, expense_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
-@csrf_exempt
 @login_required
 def delete_recurring_api(request, item_id, item_type):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -646,7 +646,6 @@ def delete_recurring_api(request, item_id, item_type):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
-@csrf_exempt
 @login_required
 def edit_recurring_api(request, item_id, item_type):
     if request.method == 'POST' or request.method == 'PUT':
@@ -672,12 +671,13 @@ def edit_recurring_api(request, item_id, item_type):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
-@csrf_exempt
 @login_required
 def add_group_expense_api(request, group_id):
     if request.method == 'POST':
         try:
             group = get_object_or_404(Group, id=group_id)
+            if not GroupMember.objects.filter(group=group, user=request.user).exists():
+                return JsonResponse({'error': 'Unauthorized: You are not a member of this group'}, status=403)
             body = json.loads(request.body)
             
             amount = float(body.get('amount'))
@@ -688,8 +688,12 @@ def add_group_expense_api(request, group_id):
             splits_data = body.get('splits', []) # list of {userId, amount}
             date_str = body.get('date')
             
+            if amount <= 0:
+                return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
             if not payers:
                 return JsonResponse({'error': 'At least one payer is required.'}, status=400)
+            if not splits_data:
+                return JsonResponse({'error': 'At least one person must be involved in the split to avoid division by zero.'}, status=400)
                 
             total_paid = sum(float(p['amount']) for p in payers)
             if abs(total_paid - amount) > 0.01:
@@ -768,12 +772,13 @@ def add_group_expense_api(request, group_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
-@csrf_exempt
 @login_required
 def edit_group_expense_api(request, group_id, expense_id):
     if request.method == 'POST' or request.method == 'PUT':
         try:
             group = get_object_or_404(Group, id=group_id)
+            if not GroupMember.objects.filter(group=group, user=request.user).exists():
+                return JsonResponse({'error': 'Unauthorized: You are not a member of this group'}, status=403)
             group_expense = get_object_or_404(GroupExpense, id=expense_id, group=group)
             body = json.loads(request.body)
             
@@ -784,8 +789,12 @@ def edit_group_expense_api(request, group_id, expense_id):
             splits_data = body.get('splits', [])
             date_str = body.get('date')
             
+            if amount <= 0:
+                return JsonResponse({'error': 'Amount must be greater than zero.'}, status=400)
             if not payers:
                 return JsonResponse({'error': 'At least one payer is required.'}, status=400)
+            if not splits_data:
+                return JsonResponse({'error': 'At least one person must be involved in the split to avoid division by zero.'}, status=400)
                 
             total_paid = sum(float(p['amount']) for p in payers)
             if abs(total_paid - amount) > 0.01:
@@ -837,17 +846,20 @@ def edit_group_expense_api(request, group_id, expense_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
 
-@csrf_exempt
 @login_required
 def add_settlement_api(request, group_id):
     if request.method == 'POST':
         try:
             group = get_object_or_404(Group, id=group_id)
+            if not GroupMember.objects.filter(group=group, user=request.user).exists():
+                return JsonResponse({'error': 'Unauthorized: You are not a member of this group'}, status=403)
             body = json.loads(request.body)
             
             from_user_id = body.get('fromUserId')
             to_user_id = body.get('toUserId')
             amount = float(body.get('amount'))
+            if amount <= 0:
+                return JsonResponse({'error': 'Settlement amount must be greater than zero.'}, status=400)
             
             from_user = get_object_or_404(User, id=from_user_id)
             to_user = get_object_or_404(User, id=to_user_id)
@@ -864,7 +876,6 @@ def add_settlement_api(request, group_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
-@csrf_exempt
 @login_required
 def save_savings_goal_api(request):
     if request.method == 'POST':
@@ -925,7 +936,6 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
-@csrf_exempt
 @login_required
 def delete_group_expense_api(request, group_id, expense_id):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -938,7 +948,6 @@ def delete_group_expense_api(request, group_id, expense_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
-@csrf_exempt
 @login_required
 def delete_group_api(request, group_id):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -950,7 +959,6 @@ def delete_group_api(request, group_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
-@csrf_exempt
 @login_required
 def edit_group_api(request, group_id):
     if request.method == 'POST':
@@ -973,7 +981,7 @@ def edit_group_api(request, group_id):
     return JsonResponse({'error': 'POST required'}, status=405)
 
 def get_user_group_balance(group, user_id):
-    expenses = GroupExpense.objects.filter(group=group)
+    expenses = GroupExpense.objects.filter(group=group).prefetch_related('payments', 'splits')
     settlements = Settlement.objects.filter(group=group)
     net = 0.0
     
@@ -996,7 +1004,6 @@ def get_user_group_balance(group, user_id):
             
     return round(net, 2)
 
-@csrf_exempt
 @login_required
 def api_remove_member(request, group_id, member_id):
     if request.method == 'POST':
@@ -1015,7 +1022,6 @@ def api_remove_member(request, group_id, member_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST required'}, status=405)
 
-@csrf_exempt
 @login_required
 def api_leave_group(request, group_id):
     if request.method == 'POST':
