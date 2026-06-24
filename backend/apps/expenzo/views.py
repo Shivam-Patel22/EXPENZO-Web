@@ -28,6 +28,7 @@ from .charts import (
     generate_savings_gauge_chart, generate_spending_pie_chart,
     generate_group_net_standing_chart
 )
+from .decorators import rate_limit
 
 # Helper function to get get_object_or_404 substitute for clean usage
 def get_object_or_none(model, **kwargs):
@@ -36,6 +37,7 @@ def get_object_or_none(model, **kwargs):
     except model.DoesNotExist:
         return None
 
+@rate_limit(limit=60, window=60)
 @login_required
 def dashboard_view(request):
     user = request.user
@@ -139,6 +141,7 @@ def dashboard_view(request):
     }
     return render(request, 'dashboard.html', context)
 
+@rate_limit(limit=60, window=60)
 @login_required
 def history_view(request):
     user = request.user
@@ -222,6 +225,7 @@ def history_view(request):
     }
     return render(request, 'history.html', context)
 
+@rate_limit(limit=60, window=60)
 @login_required
 def recurring_view(request):
     user = request.user
@@ -254,6 +258,7 @@ def recurring_view(request):
     }
     return render(request, 'recurring.html', context)
 
+@rate_limit(limit=60, window=60)
 @login_required
 def groups_view(request):
     user = request.user
@@ -279,6 +284,7 @@ def groups_view(request):
     }
     return render(request, 'groups.html', context)
 
+@rate_limit(limit=60, window=60)
 @login_required
 def group_detail_view(request, group_id):
     user = request.user
@@ -554,6 +560,7 @@ def group_detail_view(request, group_id):
     }
     return render(request, 'group_detail.html', context)
 
+@rate_limit(limit=60, window=60)
 @login_required
 def profile_view(request):
     user = request.user
@@ -574,6 +581,7 @@ def profile_view(request):
     }
     return render(request, 'profile.html', context)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def add_expense_api(request):
     if request.method == 'POST':
@@ -616,6 +624,7 @@ def add_expense_api(request):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def edit_expense_api(request, expense_id):
     if request.method == 'POST' or request.method == 'PUT':
@@ -652,6 +661,7 @@ def edit_expense_api(request, expense_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def delete_expense_api(request, expense_id):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -660,6 +670,7 @@ def delete_expense_api(request, expense_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def delete_recurring_api(request, item_id, item_type):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -675,6 +686,7 @@ def delete_recurring_api(request, item_id, item_type):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def edit_recurring_api(request, item_id, item_type):
     if request.method == 'POST' or request.method == 'PUT':
@@ -705,6 +717,7 @@ def edit_recurring_api(request, item_id, item_type):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def add_group_expense_api(request, group_id):
     if request.method == 'POST':
@@ -733,6 +746,13 @@ def add_group_expense_api(request, group_id):
             if not splits_data:
                 return JsonResponse({'error': 'At least one person must be involved in the split to avoid division by zero.'}, status=400)
                 
+            # IDOR check: Verify all participants are in the group
+            participant_ids = set([p['userId'] for p in payers] + [s['userId'] for s in splits_data])
+            valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
+            for uid in participant_ids:
+                if uid not in valid_member_ids:
+                    return JsonResponse({'error': 'One or more users involved in this transaction are not members of the group.'}, status=400)
+                    
             total_paid = sum(float(p['amount']) for p in payers)
             if abs(total_paid - amount) > 0.01:
                 return JsonResponse({'error': f'Sum of payments ({total_paid}) must equal total amount ({amount}).'}, status=400)
@@ -812,6 +832,7 @@ def add_group_expense_api(request, group_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def edit_group_expense_api(request, group_id, expense_id):
     if request.method == 'POST' or request.method == 'PUT':
@@ -840,6 +861,13 @@ def edit_group_expense_api(request, group_id, expense_id):
             if not splits_data:
                 return JsonResponse({'error': 'At least one person must be involved in the split to avoid division by zero.'}, status=400)
                 
+            # IDOR check: Verify all participants are in the group
+            participant_ids = set([p['userId'] for p in payers] + [s['userId'] for s in splits_data])
+            valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
+            for uid in participant_ids:
+                if uid not in valid_member_ids:
+                    return JsonResponse({'error': 'One or more users involved in this transaction are not members of the group.'}, status=400)
+                    
             total_paid = sum(float(p['amount']) for p in payers)
             if abs(total_paid - amount) > 0.01:
                 return JsonResponse({'error': f'Sum of payments ({total_paid}) must equal total amount ({amount}).'}, status=400)
@@ -892,6 +920,7 @@ def edit_group_expense_api(request, group_id, expense_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def add_settlement_api(request, group_id):
     if request.method == 'POST':
@@ -910,6 +939,11 @@ def add_settlement_api(request, group_id):
             if amount <= 0:
                 return JsonResponse({'error': 'Settlement amount must be greater than zero.'}, status=400)
             
+            # IDOR check: Verify both users are members of the group
+            valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
+            if from_user_id not in valid_member_ids or to_user_id not in valid_member_ids:
+                return JsonResponse({'error': 'One or both users are not members of the group.'}, status=400)
+                
             from_user = get_object_or_404(User, id=from_user_id)
             to_user = get_object_or_404(User, id=to_user_id)
             
@@ -927,6 +961,7 @@ def add_settlement_api(request, group_id):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def save_savings_goal_api(request):
     if request.method == 'POST':
@@ -950,6 +985,7 @@ def save_savings_goal_api(request):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
+@rate_limit(limit=3, window=600)
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -1016,6 +1052,7 @@ def activate_account(request, uidb64, token):
     else:
         return render(request, 'login.html', {'error': 'Activation link is invalid or has expired.'})
 
+@rate_limit(limit=10, window=60)
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -1047,6 +1084,7 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
+@rate_limit(limit=30, window=60)
 @login_required
 def delete_group_expense_api(request, group_id, expense_id):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -1059,6 +1097,7 @@ def delete_group_expense_api(request, group_id, expense_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def delete_group_api(request, group_id):
     if request.method == 'POST' or request.method == 'DELETE':
@@ -1070,6 +1109,7 @@ def delete_group_api(request, group_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST or DELETE required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def edit_group_api(request, group_id):
     if request.method == 'POST':
@@ -1117,6 +1157,7 @@ def get_user_group_balance(group, user_id):
             
     return round(net, 2)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def api_remove_member(request, group_id, member_id):
     if request.method == 'POST':
@@ -1135,6 +1176,7 @@ def api_remove_member(request, group_id, member_id):
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'POST required'}, status=405)
 
+@rate_limit(limit=30, window=60)
 @login_required
 def api_leave_group(request, group_id):
     if request.method == 'POST':
