@@ -7,6 +7,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone as django_timezone
 from datetime import datetime, timedelta
 import json
+import logging
+
+logger = logging.getLogger('security')
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -621,6 +624,7 @@ def add_expense_api(request):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
@@ -658,6 +662,7 @@ def edit_expense_api(request, expense_id):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
 
@@ -714,6 +719,7 @@ def edit_recurring_api(request, item_id, item_type):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
@@ -724,6 +730,7 @@ def add_group_expense_api(request, group_id):
         try:
             group = get_object_or_404(Group, id=group_id)
             if not GroupMember.objects.filter(group=group, user=request.user).exists():
+                logger.warning(f"SECURITY: Unauthorized group access attempt by user {request.user.id}.")
                 return JsonResponse({'error': 'Unauthorized: You are not a member of this group'}, status=403)
             body = json.loads(request.body)
             
@@ -751,6 +758,7 @@ def add_group_expense_api(request, group_id):
             valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
             for uid in participant_ids:
                 if uid not in valid_member_ids:
+                    logger.warning(f"SECURITY: IDOR blocked! User {request.user.id} attempted to link non-members to a transaction.")
                     return JsonResponse({'error': 'One or more users involved in this transaction are not members of the group.'}, status=400)
                     
             total_paid = sum(float(p['amount']) for p in payers)
@@ -829,6 +837,7 @@ def add_group_expense_api(request, group_id):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
@@ -839,6 +848,7 @@ def edit_group_expense_api(request, group_id, expense_id):
         try:
             group = get_object_or_404(Group, id=group_id)
             if not GroupMember.objects.filter(group=group, user=request.user).exists():
+                logger.warning(f"SECURITY: Unauthorized group access attempt by user {request.user.id}.")
                 return JsonResponse({'error': 'Unauthorized: You are not a member of this group'}, status=403)
             group_expense = get_object_or_404(GroupExpense, id=expense_id, group=group)
             body = json.loads(request.body)
@@ -866,6 +876,7 @@ def edit_group_expense_api(request, group_id, expense_id):
             valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
             for uid in participant_ids:
                 if uid not in valid_member_ids:
+                    logger.warning(f"SECURITY: IDOR blocked! User {request.user.id} attempted to link non-members to a transaction.")
                     return JsonResponse({'error': 'One or more users involved in this transaction are not members of the group.'}, status=400)
                     
             total_paid = sum(float(p['amount']) for p in payers)
@@ -917,6 +928,7 @@ def edit_group_expense_api(request, group_id, expense_id):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST or PUT required'}, status=405)
 
@@ -927,6 +939,7 @@ def add_settlement_api(request, group_id):
         try:
             group = get_object_or_404(Group, id=group_id)
             if not GroupMember.objects.filter(group=group, user=request.user).exists():
+                logger.warning(f"SECURITY: Unauthorized group access attempt by user {request.user.id}.")
                 return JsonResponse({'error': 'Unauthorized: You are not a member of this group'}, status=403)
             body = json.loads(request.body)
             
@@ -942,6 +955,7 @@ def add_settlement_api(request, group_id):
             # IDOR check: Verify both users are members of the group
             valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
             if from_user_id not in valid_member_ids or to_user_id not in valid_member_ids:
+                logger.warning(f"SECURITY: IDOR blocked! User {request.user.id} attempted to settle with non-members.")
                 return JsonResponse({'error': 'One or both users are not members of the group.'}, status=400)
                 
             from_user = get_object_or_404(User, id=from_user_id)
@@ -958,6 +972,7 @@ def add_settlement_api(request, group_id):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
@@ -982,6 +997,7 @@ def save_savings_goal_api(request):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
@@ -1066,6 +1082,7 @@ def login_view(request):
         attempts = cache.get(cache_key, 0)
         
         if attempts >= 5:
+            logger.warning(f"SECURITY: IP {ip} locked out after multiple failed login attempts.")
             return render(request, 'login.html', {'error': 'Too many failed login attempts. Please try again in 15 minutes.'})
             
         user = authenticate(request, username=email, password=password)
@@ -1074,9 +1091,11 @@ def login_view(request):
                 return render(request, 'login.html', {'error': 'Account is not activated. Please check your email / console for the link.'})
             cache.delete(cache_key) # Reset attempts on success
             login(request, user)
+            logger.warning(f"SECURITY: Successful login for {email} from IP {ip}.")
             return redirect('dashboard')
         else:
             cache.set(cache_key, attempts + 1, timeout=900) # 15 minutes lock
+            logger.warning(f"SECURITY: Failed login attempt for {email} from IP {ip}.")
             return render(request, 'login.html', {'error': 'Invalid credentials'})
     return render(request, 'login.html')
 
@@ -1104,6 +1123,7 @@ def delete_group_api(request, group_id):
         group = get_object_or_404(Group, id=group_id)
         membership = GroupMember.objects.filter(group=group, user=request.user).first()
         if not membership or membership.role != 'ADMIN':
+            logger.warning(f"SECURITY: Non-admin delete attempt on group by user {request.user.id}.")
             return JsonResponse({'error': 'Only Group Admins can delete this group.'}, status=403)
         group.delete()
         return JsonResponse({'status': 'success'})
@@ -1117,6 +1137,7 @@ def edit_group_api(request, group_id):
             group = get_object_or_404(Group, id=group_id)
             membership = GroupMember.objects.filter(group=group, user=request.user).first()
             if not membership or membership.role != 'ADMIN':
+                logger.warning(f"SECURITY: Non-admin edit attempt on group details by user {request.user.id}.")
                 return JsonResponse({'error': 'Only Group Admins can edit group details.'}, status=403)
             body = json.loads(request.body)
             name = strip_tags(body.get('name', '')).strip()[:100]
@@ -1130,6 +1151,7 @@ def edit_group_api(request, group_id):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
+            logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'POST required'}, status=405)
 
