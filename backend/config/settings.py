@@ -151,6 +151,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'noreply@expenzo.local'
 
 # --- SECURITY LOGGING CONFIGURATION ---
+import os
+os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
