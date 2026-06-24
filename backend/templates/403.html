@@ -8,11 +8,22 @@
   <i data-lucide="shield-alert" style="width: 64px; height: 64px; color: var(--accent-danger); margin-bottom: 1.5rem;"></i>
   <h1 style="color: var(--text-primary); margin-bottom: 0.5rem; font-size: 2rem;">Access Denied</h1>
   <p style="font-size: 1rem; max-width: 450px; line-height: 1.5;">
-    You do not have permission to access this page. Make sure you are a registered member of this group.
+    {% if error %}
+      {{ error }}
+    {% else %}
+      You do not have permission to access this page. Make sure you are a registered member of this group.
+    {% endif %}
   </p>
+  {% if error %}
+  <a href="{% url 'login' %}" class="btn btn-primary" style="margin-top: 2rem; padding: 0.6rem 1.5rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+    <i data-lucide="home" style="width: 18px; height: 18px;"></i>
+    <span>Go Home</span>
+  </a>
+  {% else %}
   <a href="{% url 'groups' %}" class="btn btn-primary" style="margin-top: 2rem; padding: 0.6rem 1.5rem; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
     <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
     <span>Back to Groups</span>
   </a>
+  {% endif %}
 </div>
 {% endblock %}
