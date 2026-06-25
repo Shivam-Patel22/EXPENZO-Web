@@ -119,8 +119,13 @@
         </div>
 
         <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-          <button class="btn btn-secondary btn-add-income" onclick="openTransactionModal('Income')" style="flex: 1; padding: 0.5rem 1rem; font-size: 0.85rem; background: #ffffff; color: #000000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-            + Add Income
+          <button class="btn btn-secondary btn-add-income" onclick="openTransactionModal('income')" style="flex: 1; padding: 0.5rem 1rem; font-size: 0.85rem; background: rgba(255, 255, 255, 0.1); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-weight: 600; transition: background 0.2s;">
+            <i data-lucide="plus" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; margin-right: 4px;"></i>
+            Income
+          </button>
+          <button class="btn btn-primary btn-quick-expense" onclick="openTransactionModal('Food')" style="flex: 1; padding: 0.5rem 1rem; font-size: 0.85rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 0.25rem;">
+            <i data-lucide="minus" style="width: 14px; height: 14px;"></i>
+            Expense
           </button>
         </div>
 
@@ -196,24 +201,48 @@
       </div>
     </div>
 
+    <!-- Payment Method Breakdown Block -->
+    <div class="glass-card" style="padding: 1.5rem 1.75rem; margin-top: 1.5rem;">
+      <div class="spending-card-header">
+        <div>
+          <h3 class="spending-title">Payment Methods</h3>
+          <p class="spending-subtitle">Income vs Expense balance per method</p>
+        </div>
+      </div>
+
+      <div class="spending-chart-section" style="flex-direction: column; align-items: stretch; gap: 1.5rem;">
+        {% if not payment_method_breakdown %}
+          <div class="no-spending-text" style="text-align: center; padding: 2rem 0;">
+            No payment method data recorded.
+          </div>
+        {% else %}
+          <div class="legend-grid" style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%; margin-top: 0.5rem;">
+            {% for pm in payment_method_breakdown %}
+              <div class="legend-item" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 12px; width: 100%; box-sizing: border-box;">
+                <div style="display: flex; flex-direction: column;">
+                  <strong style="display: block; font-size: 0.95rem; color: var(--text-primary);">{{ pm.name }}</strong>
+                  <div style="display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    <span class="text-success">+₹{{ pm.income|floatformat:2 }}</span>
+                    <span class="text-danger">-₹{{ pm.expense|floatformat:2 }}</span>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center;">
+                  <span style="font-size: 1.1rem; font-weight: 700; color: {% if pm.balance >= 0 %}var(--accent-success){% else %}var(--accent-danger){% endif %};">
+                    {% if pm.balance >= 0 %}+{% endif %}₹{{ pm.balance|floatformat:2 }}
+                  </span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
   </div>
 
   <!-- Right Column (Side Panel) -->
   <div class="right-column">
     
-    <!-- Consolidated Quick Action Card -->
-    <div class="glass-card quick-actions-card">
-      <h3 class="quick-actions-title">Quick Actions</h3>
-      <button
-        onclick="openTransactionModal('Food')"
-        class="btn btn-primary btn-quick-expense"
-        style="width: 100%; padding: 0.75rem; border-radius: 12px; display: flex; gap: 0.5rem; justify-content: center; align-items: center; border: none; cursor: pointer; font-weight: 600;"
-      >
-        <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
-        <span>Log New Transaction</span>
-      </button>
-    </div>
-
     <!-- Recent Expenses List Card -->
     <div class="glass-card" style="padding: 1.5rem;">
       <div class="spending-card-header">
@@ -390,7 +419,7 @@
             <option value="UPI">UPI</option>
             <option value="Credit Card">Credit Card</option>
             <option value="Debit Card">Debit Card</option>
-            <option value="Net Banking">Net Banking</option>
+            <option value="Bank Account">Bank Account</option>
           </select>
         </div>
         <div class="form-group">

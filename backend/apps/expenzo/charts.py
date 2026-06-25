@@ -118,3 +118,61 @@ def generate_group_net_standing_chart(names, nets):
         print("Error generating net standing chart:", e)
         return None
 
+def generate_payment_method_bar_chart(pm_stats):
+    try:
+        if not pm_stats:
+            return None
+            
+        labels = []
+        incomes = []
+        expenses = []
+        
+        for name, data in pm_stats.items():
+            if data['income'] == 0 and data['expense'] == 0:
+                continue
+            labels.append(name)
+            incomes.append(data['income'])
+            expenses.append(data['expense'])
+            
+        if not labels:
+            return None
+
+        import numpy as np
+        x = np.arange(len(labels))
+        width = 0.35
+
+        fig, ax = plt.subplots(figsize=(4.0, 2.5), dpi=200)
+        fig.patch.set_alpha(0.0)
+        ax.patch.set_alpha(0.0)
+
+        # High-contrast colors
+        color_income = '#34d399' # Success Green
+        color_expense = '#fb7185' # Danger Red
+
+        rects1 = ax.bar(x - width/2, incomes, width, label='Income', color=color_income, edgecolor='none')
+        rects2 = ax.bar(x + width/2, expenses, width, label='Expense', color=color_expense, edgecolor='none')
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_color((1.0, 1.0, 1.0, 0.1))
+        ax.spines['bottom'].set_color((1.0, 1.0, 1.0, 0.1))
+        ax.tick_params(colors='#94a3b8', labelsize=8)
+        
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels)
+        plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+
+        # Add legend
+        ax.legend(loc='upper right', frameon=False, labelcolor='#94a3b8', fontsize=8)
+
+        plt.tight_layout()
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0, transparent=True)
+        plt.close(fig)
+        return base64.b64encode(buf.getvalue()).decode('utf-8')
+    except Exception as e:
+        print("Error generating payment method chart:", e)
+        return None
+
+

@@ -19,7 +19,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.html import strip_tags
 from django.core.mail import send_mail
 from django.urls import reverse
-from django.core.cache import cache
+from django.core.cache import cache 
 
 from .models import (
     UserProfile, PersonalExpense, RecurringIncome, RecurringExpense,
@@ -29,7 +29,7 @@ from .models import (
 from .recurring_processor import process_recurring_finance, recalculate_current_month
 from .charts import (
     generate_savings_gauge_chart, generate_spending_pie_chart,
-    generate_group_net_standing_chart
+    generate_group_net_standing_chart, generate_payment_method_bar_chart
 )
 from .decorators import rate_limit
 
@@ -92,6 +92,40 @@ def dashboard_view(request):
     cumulative_spend = sum(exp.amount for exp in all_past_and_current_expenses if exp.category != "Income")
     monthly_balance = cumulative_income - cumulative_spend
     
+    # Payment Method Stats
+    SUPPORTED_METHODS = ['Cash', 'UPI', 'Credit Card', 'Debit Card', 'Bank Account']
+    pm_stats = {method: {'income': 0.0, 'expense': 0.0, 'balance': 0.0} for method in SUPPORTED_METHODS}
+    pm_stats['Others'] = {'income': 0.0, 'expense': 0.0, 'balance': 0.0}
+    
+    for exp in all_past_and_current_expenses:
+        pm = exp.payment_method
+        if pm == 'Net Banking':
+            pm = 'Bank Account'
+            
+        if pm not in SUPPORTED_METHODS:
+            pm = 'Others'
+            
+        if exp.category == 'Income':
+            pm_stats[pm]['income'] += exp.amount
+            pm_stats[pm]['balance'] += exp.amount
+        else:
+            pm_stats[pm]['expense'] += exp.amount
+            pm_stats[pm]['balance'] -= exp.amount
+            
+    if pm_stats['Others']['income'] == 0 and pm_stats['Others']['expense'] == 0:
+        del pm_stats['Others']
+        
+    payment_method_breakdown = []
+    for method, data in pm_stats.items():
+        payment_method_breakdown.append({
+            'name': method,
+            'income': data['income'],
+            'expense': data['expense'],
+            'balance': data['balance']
+        })
+        
+    pm_chart_base64 = generate_payment_method_bar_chart(pm_stats)
+    
     # Calculate Pie Chart category breakdown
     category_sums = {}
     current_month_spends = monthly_expenses.exclude(category="Income")
@@ -139,6 +173,8 @@ def dashboard_view(request):
         'category_breakdown': category_breakdown,
         'pie_chart': pie_chart_base64,
         'gauge_chart': gauge_chart_base64,
+        'payment_method_breakdown': payment_method_breakdown,
+        'pm_chart': pm_chart_base64,
         'filter_type': filter_type,
         'search_query': search_query
     }
@@ -165,7 +201,7 @@ def history_view(request):
         
     # Distinct categories and payment methods for dropdown filters
     categories = ["Income", "Food", "Travel", "Shopping", "Entertainment", "Rent", "Utilities", "Health", "Education", "Investment", "Others"]
-    payment_methods = ["Cash", "UPI", "Credit Card", "Debit Card", "Net Banking"]
+    payment_methods = ["Cash", "UPI", "Credit Card", "Debit Card", "Bank Account"]
     
     # Group expenses by year and month
     from collections import defaultdict
