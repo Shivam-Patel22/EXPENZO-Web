@@ -97,19 +97,7 @@
         <input type="text" name="phone" class="input-control" placeholder="Phone number" value="{{ profile.phone|default:'' }}" />
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Country</label>
-        <select name="country" class="input-control" style="background: #0d121f;">
-          <option value="India" {% if profile.country == 'India' %}selected{% endif %}>India</option>
-          <option value="United States" {% if profile.country == 'United States' %}selected{% endif %}>United States</option>
-          <option value="United Kingdom" {% if profile.country == 'United Kingdom' %}selected{% endif %}>United Kingdom</option>
-          <option value="Canada" {% if profile.country == 'Canada' %}selected{% endif %}>Canada</option>
-          <option value="Australia" {% if profile.country == 'Australia' %}selected{% endif %}>Australia</option>
-          <option value="Germany" {% if profile.country == 'Germany' %}selected{% endif %}>Germany</option>
-          <option value="France" {% if profile.country == 'France' %}selected{% endif %}>France</option>
-          <option value="Japan" {% if profile.country == 'Japan' %}selected{% endif %}>Japan</option>
-        </select>
-      </div>
+
 
       <div class="form-group">
         <label class="form-label">Bio</label>

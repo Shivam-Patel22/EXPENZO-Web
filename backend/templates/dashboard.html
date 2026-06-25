@@ -83,14 +83,25 @@
     <form method="GET" action="{% url 'dashboard' %}" class="search-wrapper" style="display: flex; gap: 0.5rem; max-width: 400px; width: 100%;">
       <div style="position: relative; flex: 1;">
         <i data-lucide="search" class="search-icon" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); width: 18px; height: 18px;"></i>
-        <input
-          type="text"
-          name="search"
-          placeholder="Search transactions..."
-          class="input-control search-input"
-          value="{{ search_query }}"
-          style="padding-left: 2.75rem; {% if search_query %}padding-right: 2.75rem;{% endif %} border-radius: 12px; background: rgba(255, 255, 255, 0.03); width: 100%; box-sizing: border-box;"
-        />
+        {% if search_query %}
+          <input
+            type="text"
+            name="search"
+            placeholder="Search transactions..."
+            class="input-control search-input"
+            value="{{ search_query }}"
+            style="padding-left: 2.75rem; padding-right: 2.75rem; border-radius: 12px; background: rgba(255, 255, 255, 0.03); width: 100%; box-sizing: border-box;"
+          />
+        {% else %}
+          <input
+            type="text"
+            name="search"
+            placeholder="Search transactions..."
+            class="input-control search-input"
+            value="{{ search_query }}"
+            style="padding-left: 2.75rem; border-radius: 12px; background: rgba(255, 255, 255, 0.03); width: 100%; box-sizing: border-box;"
+          />
+        {% endif %}
         {% if search_query %}
           <a href="{% url 'dashboard' %}?filter={{ filter_type }}" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s;">
             <i data-lucide="x" style="width: 18px; height: 18px;"></i>
@@ -699,11 +710,7 @@
     }
   }
 
-  const accountBalances = {
-    {% for acc in account_breakdown %}
-    "{{ acc.name|escapejs }}": {{ acc.balance }},
-    {% endfor %}
-  };
+  const accountBalances = JSON.parse('{{ account_balances_json|escapejs }}' || '{}');
 
   let pendingTransactionEvent = null;
 

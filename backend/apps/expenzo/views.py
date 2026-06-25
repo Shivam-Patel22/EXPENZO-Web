@@ -194,6 +194,10 @@ def dashboard_view(request):
     gauge_chart_base64 = generate_savings_gauge_chart(savings_percent)
     active_month_label = now.strftime("%B %Y")
     
+    import json
+    account_balances_dict = {acc['name']: acc['balance'] for acc in account_breakdown}
+    account_balances_json = json.dumps(account_balances_dict)
+    
     context = {
         'recent_transactions': recent_transactions,
         'monthly_balance': monthly_balance,
@@ -208,7 +212,8 @@ def dashboard_view(request):
         'payment_method_breakdown': payment_method_breakdown,
         'pm_chart': pm_chart_base64,
         'filter_type': filter_type,
-        'search_query': search_query
+        'search_query': search_query,
+        'account_balances_json': account_balances_json
     }
     return render(request, 'dashboard.html', context)
 
