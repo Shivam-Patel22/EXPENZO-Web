@@ -340,7 +340,14 @@
         <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
         Back to Groups
       </a>
-      <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem;">
+      <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+        <div class="group-icon-display" style="width: 72px; height: 72px; border-radius: 16px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+          {% if '/' in group.icon %}
+            <img src="{{ group.icon }}" alt="{{ group.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+          {% else %}
+            <i data-lucide="{{ group.icon|default:'users' }}" style="width: 32px; height: 32px; color: var(--accent-primary);"></i>
+          {% endif %}
+        </div>
         <h1 class="page-title" style="margin: 0;">{{ group.name }}</h1>
       </div>
       <p class="page-subtitle">{% if group.description %}{{ group.description }}{% else %}No description provided.{% endif %}</p>
@@ -568,6 +575,11 @@
           <div class="form-group">
             <label class="form-label">Description</label>
             <textarea id="edit-group-desc" class="input-control" rows="3" style="resize: none;">{{ group.description|default:'' }}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Custom Group Icon (Optional)</label>
+            <input type="file" id="edit-group-icon" class="input-control" accept="image/png, image/jpeg, image/webp" />
+            <small style="color: var(--text-muted); display: block; margin-top: 0.5rem;">Upload an image (JPG, PNG, WEBP) to override the default icon. Max size: 5MB.</small>
           </div>
           <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
         </form>
@@ -1222,15 +1234,23 @@
     e.preventDefault();
     const name = document.getElementById('edit-group-name').value;
     const description = document.getElementById('edit-group-desc').value;
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('description', description);
+    
+    const iconFileInput = document.getElementById('edit-group-icon');
+    if (iconFileInput && iconFileInput.files[0]) {
+      formData.append('icon_file', iconFileInput.files[0]);
+    }
 
     try {
       const res = await fetch("{% url 'api_edit_group' group_id=group.id %}", {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'X-CSRFToken': '{{ csrf_token }}'
         },
-        body: JSON.stringify({ name, description })
+        body: formData
       });
       if (res.ok) {
         window.location.reload();

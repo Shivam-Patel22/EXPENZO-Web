@@ -81,7 +81,7 @@ class MonthlyRecurringProcessing(models.Model):
 class Group(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
-    icon = models.CharField(max_length=50, null=True, blank=True, default="users")
+    icon = models.CharField(max_length=255, null=True, blank=True, default="users")
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_groups')
     created_at = models.DateTimeField(auto_now_add=True)
 

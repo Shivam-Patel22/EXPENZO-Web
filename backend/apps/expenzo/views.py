@@ -1263,17 +1263,40 @@ def edit_group_api(request, group_id):
             if not membership or membership.role != 'ADMIN':
                 logger.warning(f"SECURITY: Non-admin edit attempt on group details by user {request.user.id}.")
                 return JsonResponse({'error': 'Only Group Admins can edit group details.'}, status=403)
-            body = json.loads(request.body)
-            name = strip_tags(body.get('name', '')).strip()[:100]
-            description = strip_tags(body.get('description', '')).strip()[:500]
+            
+            # Handle both JSON (legacy) and FormData
+            name = ''
+            description = ''
+            
+            if request.content_type == 'application/json':
+                body = json.loads(request.body)
+                name = strip_tags(body.get('name', '')).strip()[:100]
+                description = strip_tags(body.get('description', '')).strip()[:500]
+            else:
+                name = strip_tags(request.POST.get('name', '')).strip()[:100]
+                description = strip_tags(request.POST.get('description', '')).strip()[:500]
+
             if not name:
                 return JsonResponse({'error': 'Group name is required'}, status=400)
+                
             group.name = name
             group.description = description
+            
+            # Handle icon file upload
+            if 'icon_file' in request.FILES:
+                icon_file = request.FILES['icon_file']
+                allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+                if icon_file.content_type in allowed_types and icon_file.size <= 5 * 1024 * 1024:
+                    from django.core.files.storage import FileSystemStorage
+                    import time
+                    fs = FileSystemStorage(location='media/group_icons/')
+                    ext = icon_file.name.split('.')[-1]
+                    filename = f"group_{group.id}_{int(time.time())}.{ext}"
+                    saved_name = fs.save(filename, icon_file)
+                    group.icon = f"/media/group_icons/{saved_name}"
+
             group.save()
             return JsonResponse({'status': 'success'})
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON payload.'}, status=400)
         except Exception as e:
             logger.error(f"SECURITY: API Exception in {request.path} by user {request.user.id if request.user.is_authenticated else 'Anonymous'}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
