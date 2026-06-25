@@ -223,15 +223,27 @@
           <label class="form-label font-xs">Search Description</label>
           <div style="position: relative;">
             <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); width: 16px; height: 16px;"></i>
-            <input
-              type="text"
-              name="search"
-              placeholder="e.g. rent, lunch, grocery..."
-              class="input-control"
-              value="{{ search_query }}"
-              style="padding-left: 2.25rem; {% if search_query %}padding-right: 2.25rem;{% endif %} box-sizing: border-box; width: 100%;"
-              onchange="document.getElementById('filter-form').submit()"
-            />
+            {% if search_query %}
+              <input
+                type="text"
+                name="search"
+                placeholder="e.g. rent, lunch, grocery..."
+                class="input-control"
+                value="{{ search_query }}"
+                style="padding-left: 2.25rem; padding-right: 2.25rem; box-sizing: border-box; width: 100%;"
+                onchange="document.getElementById('filter-form').submit()"
+              />
+            {% else %}
+              <input
+                type="text"
+                name="search"
+                placeholder="e.g. rent, lunch, grocery..."
+                class="input-control"
+                value="{{ search_query }}"
+                style="padding-left: 2.25rem; box-sizing: border-box; width: 100%;"
+                onchange="document.getElementById('filter-form').submit()"
+              />
+            {% endif %}
             {% if search_query %}
               <a href="javascript:void(0)" onclick="document.querySelector('input[name=search]').value=''; document.getElementById('filter-form').submit();" style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s;">
                 <i data-lucide="x" style="width: 16px; height: 16px;"></i>
@@ -329,7 +341,7 @@
             </thead>
             <tbody>
               {% for exp in month.expenses %}
-                <tr style="cursor: pointer;" onclick="openEditPersonalModal('{{ exp.id }}', '{{ exp.amount }}', '{{ exp.description|escapejs }}', '{{ exp.category }}', '{{ exp.account }}', '{{ exp.payment_method }}', '{{ exp.date|date:'Y-m-d' }}')">
+                <tr style="cursor: pointer;" onclick="openEditPersonalModal('{{ exp.id }}', '{{ exp.amount }}', '{{ exp.description|escapejs }}', '{{ exp.category }}', '{{ exp.account }}', '{{ exp.payment_method }}', '{{ exp.date|date:\'Y-m-d\' }}')">
                   <td data-label="Date">{{ exp.date|date:"F d, Y" }}</td>
                   <td data-label="Description" style="font-weight: 500;">{{ exp.description }}</td>
                   <td data-label="Category">
@@ -427,12 +439,10 @@
 <script>
   // Automatically expand the first month group on load
   window.addEventListener('DOMContentLoaded', () => {
-    {% if grouped_months %}
-      const firstKey = "{{ grouped_months.0.key }}";
-      if (firstKey) {
-        toggleMonth(firstKey);
-      }
-    {% endif %}
+    const firstKey = "{{ grouped_months.0.key|default:'' }}";
+    if (firstKey) {
+      toggleMonth(firstKey);
+    }
 
     document.querySelectorAll('.color-border-apply').forEach(el => {
       el.style.borderColor = el.getAttribute('data-color');
