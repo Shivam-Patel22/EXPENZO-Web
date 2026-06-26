@@ -1140,32 +1140,11 @@ def register_view(request):
             
         user = User.objects.create_user(username=email, email=email, password=password)
         user.first_name = name
-        user.is_active = False # Require email activation
+        user.is_active = True # Bypass email activation on Render Free
         user.save()
         
-        # Send activation email
-        token = default_token_generator.make_token(user)
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        activation_link = request.build_absolute_uri(
-            reverse('activate_account', kwargs={'uidb64': uid, 'token': token})
-        )
-        
-        try:
-            send_mail(
-                'Activate your Expenzo Account',
-                f'Hi {name},\n\nPlease click the link below to activate your account:\n{activation_link}',
-                'noreply@expenzo.local',
-                [email],
-                fail_silently=False,
-            )
-            return render(request, 'login.html', {'message': 'Registration successful! Please check your console/terminal to activate your account.'})
-        except Exception:
-            # Fallback if email sending fails completely
-            user.is_active = True
-            user.save()
-            login(request, user)
-            return redirect('dashboard')
-            
+        login(request, user)
+        return redirect('dashboard')
     return render(request, 'register.html')
 
 def activate_account(request, uidb64, token):
