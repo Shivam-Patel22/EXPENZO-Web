@@ -43,6 +43,21 @@
     transform: translateX(16px);
   }
 
+  /* Back Button Style */
+  .back-dashboard-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-decoration: none;
+    margin-bottom: 0.5rem;
+    transition: color 0.3s;
+  }
+  .back-dashboard-btn:hover {
+    color: var(--text-primary);
+  }
+
   .group-detail-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -857,12 +872,12 @@
           <input type="number" id="exp-amount" class="input-control" placeholder="0.00" required min="1" step="0.01" />
         </div>
         <div class="form-group">
-          <label class="form-label">Description</label>
-          <input type="text" id="exp-desc" class="input-control" placeholder="e.g. Grocery dinner, Office lunch" required />
+          <label class="form-label">Description (Optional)</label>
+          <input type="text" id="exp-desc" class="input-control" placeholder="e.g. Grocery dinner, Office lunch" />
         </div>
         <div class="form-group">
           <label class="form-label">Date</label>
-          <input type="date" id="exp-date" class="input-control" required />
+          <input type="date" id="exp-date" class="input-control" value="{% now 'Y-m-d' %}" required />
         </div>
         <div class="form-group">
           <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
@@ -1001,6 +1016,9 @@
     document.getElementById('expense-form').reset();
     document.getElementById('exp-id').value = '';
     document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+    if (document.getElementById('exp-date').customCalendar) {
+      document.getElementById('exp-date').customCalendar.resetToOriginal();
+    }
     document.querySelector('#expense-modal .chart-card-title').innerText = 'Add Group Expense';
     
     const payersContainer = document.getElementById('payers-container');
@@ -1025,6 +1043,9 @@
     document.getElementById('exp-amount').value = data.amount;
     document.getElementById('exp-desc').value = data.description;
     document.getElementById('exp-date').value = data.date;
+    if (document.getElementById('exp-date').customCalendar) {
+      document.getElementById('exp-date').customCalendar.resetToOriginal();
+    }
     
     const payersContainer = document.getElementById('payers-container');
     payersContainer.innerHTML = '';

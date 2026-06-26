@@ -446,18 +446,18 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">Description</label>
+          <label class="form-label">Description (Optional)</label>
           <input
             type="text"
             id="tx-description"
             class="input-control"
             placeholder="e.g. Grocery, Lunch, Salary"
-            required
           />
         </div>
         <div class="form-group" id="tx-category-group">
           <label class="form-label">Category</label>
-          <select id="tx-category" class="input-control" style="background: #0d121f;">
+          <select id="tx-category" class="input-control" style="background: #0d121f;" required>
+            <option value="" disabled selected>Select Category</option>
             <option value="Food">Food</option>
             <option value="Travel">Travel</option>
             <option value="Shopping">Shopping</option>
@@ -493,6 +493,7 @@
             type="date"
             id="tx-date"
             class="input-control"
+            value="{% now 'Y-m-d' %}"
             required
           />
         </div>
@@ -617,6 +618,9 @@
     // Reset form
     document.getElementById('transaction-form').reset();
     document.getElementById('tx-id').value = "";
+    if (document.getElementById('tx-date').customCalendar) {
+      document.getElementById('tx-date').customCalendar.resetToOriginal();
+    }
     
     // Reset payment options to Bank Account defaults initially
     paymentSelect.innerHTML = `
@@ -663,6 +667,9 @@
     
     document.getElementById('tx-payment').value = paymentMethod;
     document.getElementById('tx-date').value = date;
+    if (document.getElementById('tx-date').customCalendar) {
+      document.getElementById('tx-date').customCalendar.resetToOriginal();
+    }
 
     togglePaymentMethod();
 

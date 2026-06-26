@@ -431,7 +431,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Date</label>
-          <input type="date" id="tx-date" class="input-control" required />
+          <input type="date" id="tx-date" class="input-control" value="{% now 'Y-m-d' %}" required />
         </div>
       </div>
       <div class="modal-footer">
@@ -527,6 +527,9 @@
     
     document.getElementById('tx-payment').value = paymentMethod;
     document.getElementById('tx-date').value = date;
+    if (document.getElementById('tx-date').customCalendar) {
+      document.getElementById('tx-date').customCalendar.resetToOriginal();
+    }
 
     togglePaymentMethod();
 

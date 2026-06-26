@@ -1,0 +1,222 @@
+/* Recurring Finance Page Styles */
+
+.recurring-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0.5rem;
+}
+
+.recurring-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.back-dashboard-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+}
+
+.back-dashboard-btn:hover {
+  color: var(--text-primary);
+}
+
+.recalculate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+}
+
+.recurring-card-padding {
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.recurring-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+
+.add-template-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.add-template-form-row .form-group {
+  margin: 0;
+  width: 100%;
+}
+
+.select-control-dark {
+  background: #0d121f;
+}
+
+.add-template-btn {
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 42px;
+  width: 100%;
+}
+
+.recurring-loading {
+  display: flex;
+  justify-content: center;
+  padding: 4rem;
+  color: var(--text-secondary);
+}
+
+.recurring-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .recurring-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.income-list-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.3);
+  padding-bottom: 0.75rem;
+  color: var(--accent-success);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.expense-list-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-bottom: 2px solid rgba(244, 63, 94, 0.3);
+  padding-bottom: 0.75rem;
+  color: var(--accent-danger);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-list-text {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.recurring-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recurring-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  borderRadius: 10px;
+}
+
+.edit-mode-container {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  align-items: center;
+}
+
+.edit-input-text {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.edit-input-amount {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  width: 90px;
+}
+
+.edit-save-btn {
+  padding: 0.35rem;
+  border-radius: 6px;
+}
+
+.edit-cancel-btn {
+  padding: 0.35rem;
+  border-radius: 6px;
+}
+
+.item-info-name {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.item-info-amount-income {
+  font-size: 0.85rem;
+  color: var(--accent-success);
+  font-weight: 600;
+}
+
+.item-info-amount-expense {
+  font-size: 0.85rem;
+  color: var(--accent-danger);
+  font-weight: 600;
+}
+
+.item-actions-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.action-btn-secondary {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.35rem;
+}
+
+.action-btn-secondary:hover {
+  color: var(--text-primary);
+}
+
+.action-btn-danger {
+  background: none;
+  border: none;
+  color: var(--accent-danger);
+  cursor: pointer;
+  padding: 0.35rem;
+}
+
+.action-btn-danger:hover {
+  color: var(--accent-danger-hover);
+}
