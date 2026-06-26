@@ -872,6 +872,28 @@ select option {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Day Only Mode Adjustments */
+.custom-calendar-popup.day-only-mode {
+  width: 220px;
+  padding: 10px;
+}
+.custom-calendar-popup.day-only-mode .calendar-header {
+  margin-bottom: 8px;
+  margin-top: 4px;
+}
+.custom-calendar-popup.day-only-mode .calendar-month-year {
+  font-size: 0.85rem;
+}
+.custom-calendar-popup.day-only-mode .calendar-days {
+  gap: 2px;
+  row-gap: 4px;
+}
+.custom-calendar-popup.day-only-mode .calendar-day {
+  width: 26px;
+  height: 26px;
+  font-size: 0.8rem;
+}
+
 /* Purple Glow Accent */
 .custom-calendar-popup::before {
   content: '';
@@ -884,6 +906,20 @@ select option {
   background: #818cf8;
   border-radius: 8px 8px 0 0;
   box-shadow: 0 -4px 15px rgba(129, 140, 248, 0.5);
+}
+
+.custom-calendar-popup.open-down {
+  bottom: auto;
+  top: 100%;
+  margin-bottom: 0;
+  margin-top: 8px;
+}
+
+.custom-calendar-popup.open-down::before {
+  bottom: auto;
+  top: 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 15px rgba(129, 140, 248, 0.5);
 }
 
 .calendar-header {

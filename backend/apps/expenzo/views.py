@@ -325,11 +325,18 @@ def recurring_view(request):
                 amount = float(request.POST.get('amount', 0))
             except (ValueError, TypeError):
                 amount = 0.0
+            
+            try:
+                execution_day = int(request.POST.get('executionDay', 1))
+                execution_day = max(1, min(31, execution_day))
+            except (ValueError, TypeError):
+                execution_day = 1
+
             if amount > 0:
                 if new_type == 'income':
-                    RecurringIncome.objects.create(user=user, name=name, amount=amount, account=account, payment_method=payment_method)
+                    RecurringIncome.objects.create(user=user, name=name, amount=amount, account=account, payment_method=payment_method, execution_day=execution_day)
                 elif new_type == 'expense':
-                    RecurringExpense.objects.create(user=user, name=name, amount=amount, account=account, payment_method=payment_method)
+                    RecurringExpense.objects.create(user=user, name=name, amount=amount, account=account, payment_method=payment_method, execution_day=execution_day)
             recalculate_current_month(user)
         elif action == 'recalculate':
             recalculate_current_month(user)
@@ -817,6 +824,12 @@ def edit_recurring_api(request, item_id, item_type):
             except (ValueError, TypeError):
                 return JsonResponse({'error': 'Invalid amount.'}, status=400)
             
+            try:
+                execution_day = int(body.get('executionDay', 1))
+                execution_day = max(1, min(31, execution_day))
+            except (ValueError, TypeError):
+                execution_day = 1
+            
             if item_type == 'income':
                 item = get_object_or_404(RecurringIncome, id=item_id, user=request.user)
             elif item_type == 'expense':
@@ -828,6 +841,7 @@ def edit_recurring_api(request, item_id, item_type):
             item.amount = amount
             item.account = account
             item.payment_method = payment_method
+            item.execution_day = execution_day
             item.save()
             
             recalculate_current_month(request.user)

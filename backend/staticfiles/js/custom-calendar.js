@@ -17,16 +17,23 @@ class CustomCalendar {
     this.currentDate = new Date();
     this.selectedDate = null;
     
+    this.isDayOnly = this.originalInput.dataset.dayOnly === 'true';
+
     // Init dates
-    if (this.originalInput.value) {
-      const parsed = new Date(this.originalInput.value);
-      if (!isNaN(parsed)) {
-        this.selectedDate = parsed;
-        this.currentDate = new Date(parsed);
+    if (this.isDayOnly) {
+      if (this.originalInput.value) {
+        this.selectedDate = null;
       }
     } else {
-      // Default to today if nothing set
-      this.selectedDate = new Date();
+      if (this.originalInput.value) {
+        const parsed = new Date(this.originalInput.value);
+        if (!isNaN(parsed)) {
+          this.selectedDate = parsed;
+          this.currentDate = new Date(parsed);
+        }
+      } else {
+        this.selectedDate = new Date();
+      }
     }
     
     this.updateDisplayInput();
@@ -37,6 +44,9 @@ class CustomCalendar {
   buildPopup() {
     this.popup = document.createElement('div');
     this.popup.className = 'custom-calendar-popup';
+    if (this.isDayOnly) {
+      this.popup.classList.add('day-only-mode');
+    }
     this.popup.innerHTML = `
       <div class="calendar-header">
         <button type="button" class="calendar-nav-btn prev-btn">
@@ -107,10 +117,16 @@ class CustomCalendar {
   }
 
   updateDisplayInput() {
-    if (this.selectedDate) {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      this.displayInput.value = `${months[this.selectedDate.getMonth()]} ${this.selectedDate.getDate()}, ${this.selectedDate.getFullYear()}`;
-      this.originalInput.value = this.formatDateStr(this.selectedDate);
+    if (this.isDayOnly) {
+      if (this.originalInput.value) {
+        this.displayInput.value = "Day " + this.originalInput.value;
+      }
+    } else {
+      if (this.selectedDate) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        this.displayInput.value = `${months[this.selectedDate.getMonth()]} ${this.selectedDate.getDate()}, ${this.selectedDate.getFullYear()}`;
+        this.originalInput.value = this.formatDateStr(this.selectedDate);
+      }
     }
   }
 
@@ -131,7 +147,21 @@ class CustomCalendar {
       this.currentDate = new Date();
     }
     this.render();
+
+    // Auto-position logic
+    this.popup.style.visibility = 'hidden';
     this.popup.classList.add('active');
+    
+    const rect = this.displayInput.getBoundingClientRect();
+    const popupHeight = this.popup.offsetHeight;
+    const spaceAbove = rect.top;
+    
+    this.popup.classList.remove('open-down');
+    if (spaceAbove < popupHeight + 10 && (window.innerHeight - rect.bottom) > spaceAbove) {
+      this.popup.classList.add('open-down');
+    }
+    
+    this.popup.style.visibility = '';
   }
 
   close() {
@@ -139,6 +169,36 @@ class CustomCalendar {
   }
 
   render() {
+    if (this.isDayOnly) {
+      if (this.monthYearDisplay) {
+        this.monthYearDisplay.textContent = 'SELECT DAY';
+        this.popup.querySelector('.prev-btn').style.visibility = 'hidden';
+        this.popup.querySelector('.next-btn').style.visibility = 'hidden';
+        this.popup.querySelector('.calendar-weekdays').style.display = 'none';
+      }
+      this.daysGrid.innerHTML = '';
+      for (let i = 1; i <= 31; i++) {
+        const dayEl = document.createElement('div');
+        dayEl.className = 'calendar-day';
+        dayEl.textContent = i;
+        
+        if (this.originalInput.value && parseInt(this.originalInput.value) === i) {
+          dayEl.classList.add('selected');
+        }
+        
+        dayEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.originalInput.value = i;
+          this.updateDisplayInput();
+          this.close();
+          this.render();
+        });
+        
+        this.daysGrid.appendChild(dayEl);
+      }
+      return;
+    }
+
     const year = this.currentDate.getFullYear();
     const month = this.currentDate.getMonth();
     const monthsStr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -194,13 +254,20 @@ class CustomCalendar {
   resetToOriginal() {
     // Called when the underlying form is reset
     setTimeout(() => {
-      if (this.originalInput.value) {
-        const parsed = new Date(this.originalInput.value);
-        if (!isNaN(parsed)) {
-          this.selectedDate = parsed;
-          this.currentDate = new Date(parsed);
+      if (this.isDayOnly) {
+        if (this.originalInput.value) {
           this.updateDisplayInput();
           this.render();
+        }
+      } else {
+        if (this.originalInput.value) {
+          const parsed = new Date(this.originalInput.value);
+          if (!isNaN(parsed)) {
+            this.selectedDate = parsed;
+            this.currentDate = new Date(parsed);
+            this.updateDisplayInput();
+            this.render();
+          }
         }
       }
     }, 10); // Small delay to let the form reset happen first
@@ -209,7 +276,7 @@ class CustomCalendar {
 
 // Global initialization
 function initCustomCalendars() {
-  document.querySelectorAll('input[type="date"]').forEach(input => {
+  document.querySelectorAll('input[type="date"], input[data-day-only="true"]').forEach(input => {
     if (!input.dataset.calendarInitialized) {
       input.customCalendar = new CustomCalendar(input);
       input.dataset.calendarInitialized = 'true';

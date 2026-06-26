@@ -34,7 +34,7 @@
   </div>
 
   <!-- Add Entry Inline Form -->
-  <div class="glass-card recurring-card-padding">
+  <div class="glass-card recurring-card-padding" style="position: relative; z-index: 50;">
     <h3 class="recurring-card-title">Add Recurring Template</h3>
     <form method="POST" action="{% url 'recurring' %}">
       {% csrf_token %}
@@ -59,6 +59,18 @@
             name="name"
             class="input-control" 
             placeholder="e.g. Rent" 
+            required
+          />
+        </div>
+
+        <div class="form-group form-group-day">
+          <label class="form-label font-xs">Execution Day</label>
+          <input 
+            type="text" 
+            name="executionDay"
+            class="input-control" 
+            placeholder="Select Day"
+            data-day-only="true"
             required
           />
         </div>
@@ -124,6 +136,7 @@
                 <div style="flex: 1;">
                   <strong class="item-info-name" style="display: block;">{{ item.name }}</strong>
                   <div style="display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    <span><i data-lucide="calendar" style="width: 12px; height: 12px; vertical-align: middle;"></i> Day {{ item.execution_day }}</span>
                     <span><i data-lucide="wallet" style="width: 12px; height: 12px; vertical-align: middle;"></i> {{ item.account }}</span>
                     <span><i data-lucide="credit-card" style="width: 12px; height: 12px; vertical-align: middle;"></i> {{ item.payment_method }}</span>
                   </div>
@@ -133,7 +146,7 @@
                 </div>
                 <div class="item-actions-wrapper">
                   <button 
-                    onclick="startEdit('{{ item.id }}', 'income', '{{ item.name|escapejs }}', '{{ item.amount }}', '{{ item.account|escapejs }}', '{{ item.payment_method|escapejs }}')"
+                    onclick="startEdit('{{ item.id }}', 'income', '{{ item.name|escapejs }}', '{{ item.amount }}', '{{ item.account|escapejs }}', '{{ item.payment_method|escapejs }}', '{{ item.execution_day }}')"
                     class="action-btn-secondary"
                     title="Edit"
                   >
@@ -154,6 +167,7 @@
                 <div style="display: flex; width: 100%; gap: 0.5rem;">
                   <input type="text" id="edit-name-income-{{ item.id }}" class="input-control edit-input-text" style="flex: 2;">
                   <input type="number" id="edit-amount-income-{{ item.id }}" class="input-control edit-input-amount" step="0.01" style="flex: 1;">
+                  <input type="text" id="edit-execution-income-{{ item.id }}" class="input-control" data-day-only="true" style="flex: 0.5;" placeholder="Day">
                 </div>
                 <div style="display: flex; width: 100%; gap: 0.5rem; margin-top: 0.25rem;">
                   <select id="edit-account-income-{{ item.id }}" class="input-control" style="flex: 1; font-size: 0.8rem; padding: 0.4rem;" onchange="toggleEditPaymentMethod('{{ item.id }}', 'income')">
@@ -197,6 +211,7 @@
                 <div style="flex: 1;">
                   <strong class="item-info-name" style="display: block;">{{ item.name }}</strong>
                   <div style="display: flex; gap: 0.75rem; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    <span><i data-lucide="calendar" style="width: 12px; height: 12px; vertical-align: middle;"></i> Day {{ item.execution_day }}</span>
                     <span><i data-lucide="wallet" style="width: 12px; height: 12px; vertical-align: middle;"></i> {{ item.account }}</span>
                     <span><i data-lucide="credit-card" style="width: 12px; height: 12px; vertical-align: middle;"></i> {{ item.payment_method }}</span>
                   </div>
@@ -206,7 +221,7 @@
                 </div>
                 <div class="item-actions-wrapper">
                   <button 
-                    onclick="startEdit('{{ item.id }}', 'expense', '{{ item.name|escapejs }}', '{{ item.amount }}', '{{ item.account|escapejs }}', '{{ item.payment_method|escapejs }}')"
+                    onclick="startEdit('{{ item.id }}', 'expense', '{{ item.name|escapejs }}', '{{ item.amount }}', '{{ item.account|escapejs }}', '{{ item.payment_method|escapejs }}', '{{ item.execution_day }}')"
                     class="action-btn-secondary"
                     title="Edit"
                   >
@@ -227,6 +242,7 @@
                 <div style="display: flex; width: 100%; gap: 0.5rem;">
                   <input type="text" id="edit-name-expense-{{ item.id }}" class="input-control edit-input-text" style="flex: 2;">
                   <input type="number" id="edit-amount-expense-{{ item.id }}" class="input-control edit-input-amount" step="0.01" style="flex: 1;">
+                  <input type="text" id="edit-execution-expense-{{ item.id }}" class="input-control" data-day-only="true" style="flex: 0.5;" placeholder="Day">
                 </div>
                 <div style="display: flex; width: 100%; gap: 0.5rem; margin-top: 0.25rem;">
                   <select id="edit-account-expense-{{ item.id }}" class="input-control" style="flex: 1; font-size: 0.8rem; padding: 0.4rem;" onchange="toggleEditPaymentMethod('{{ item.id }}', 'expense')">
@@ -319,11 +335,18 @@
       paymentSelect.value = 'UPI';
     }
   }
-  function startEdit(id, type, name, amount, account, paymentMethod) {
+  function startEdit(id, type, name, amount, account, paymentMethod, executionDay) {
     document.getElementById(`view-mode-${type}-${id}`).style.display = 'none';
     document.getElementById(`edit-mode-${type}-${id}`).style.display = 'flex';
     document.getElementById(`edit-name-${type}-${id}`).value = name;
     document.getElementById(`edit-amount-${type}-${id}`).value = amount;
+    document.getElementById(`edit-execution-${type}-${id}`).value = executionDay;
+    
+    // Trigger custom calendar update since value was set programmatically
+    const execInput = document.getElementById(`edit-execution-${type}-${id}`);
+    if (execInput.customCalendar) {
+      execInput.customCalendar.resetToOriginal();
+    }
     
     const accountSelect = document.getElementById(`edit-account-${type}-${id}`);
     const paymentSelect = document.getElementById(`edit-payment-${type}-${id}`);
@@ -344,6 +367,7 @@
     const amount = document.getElementById(`edit-amount-${type}-${id}`).value;
     const account = document.getElementById(`edit-account-${type}-${id}`).value;
     const paymentMethod = document.getElementById(`edit-payment-${type}-${id}`).value;
+    const executionDay = document.getElementById(`edit-execution-${type}-${id}`).value;
 
     try {
       const res = await fetch(`/api/recurring/edit/${id}/${type}/`, {
@@ -352,7 +376,7 @@
           'Content-Type': 'application/json',
           'X-CSRFToken': '{{ csrf_token }}'
         },
-        body: JSON.stringify({ name, amount, account, paymentMethod })
+        body: JSON.stringify({ name, amount, account, paymentMethod, executionDay })
       });
       if (res.ok) {
         window.location.reload();

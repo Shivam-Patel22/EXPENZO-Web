@@ -1,77 +1,67 @@
-from datetime import datetime, timezone
-from django.db import transaction, IntegrityError
+import calendar
+from datetime import datetime
+from django.db import transaction
 from django.utils import timezone as django_timezone
-from .models import PersonalExpense, RecurringIncome, RecurringExpense, MonthlyRecurringProcessing
+from .models import PersonalExpense, RecurringIncome, RecurringExpense
 
 def process_recurring_finance(user):
     try:
         now = django_timezone.now()
         curr_year = now.year
         curr_month = now.month
+        curr_day = now.day
 
-        # Get earliest transaction to determine start date, or default to current month
-        earliest_tx = PersonalExpense.objects.filter(user=user).order_by('date').first()
+        active_incomes = RecurringIncome.objects.filter(user=user, is_active=True)
+        active_expenses = RecurringExpense.objects.filter(user=user, is_active=True)
 
-        if earliest_tx:
-            start_year = earliest_tx.year if earliest_tx.year is not None else earliest_tx.date.year
-            start_month = earliest_tx.month if earliest_tx.month is not None else earliest_tx.date.month
-        else:
-            start_year = curr_year
-            start_month = curr_month
+        for item_list, is_income in [(active_incomes, True), (active_expenses, False)]:
+            for item in item_list:
+                # If never processed, start from its creation date. If processed, start from next month.
+                if item.last_processed_year is None or item.last_processed_month is None:
+                    start_year = item.created_at.year
+                    start_month = item.created_at.month
+                else:
+                    start_year = item.last_processed_year
+                    start_month = item.last_processed_month + 1
+                    if start_month > 12:
+                        start_month = 1
+                        start_year += 1
 
-        y = start_year
-        m = start_month
+                y = start_year
+                m = start_month
 
-        # Loop through each month up to the current calendar month
-        while y < curr_year or (y == curr_year and m <= curr_month):
-            already_processed = MonthlyRecurringProcessing.objects.filter(
-                user=user, month=m, year=y
-            ).exists()
-
-            if not already_processed:
-                try:
-                    with transaction.atomic():
-                        # Create processing record FIRST to act as a database lock
-                        # If a concurrent request is processing this month, this will throw IntegrityError
-                        MonthlyRecurringProcessing.objects.create(
-                            user=user,
-                            month=m,
-                            year=y
+                with transaction.atomic():
+                    while y < curr_year or (y == curr_year and m <= curr_month):
+                        last_day = calendar.monthrange(y, m)[1]
+                        exec_day = min(item.execution_day, last_day)
+                        
+                        # If we are in the current month, only process if today >= exec_day
+                        if y == curr_year and m == curr_month and curr_day < exec_day:
+                            break
+                        
+                        process_date = django_timezone.make_aware(datetime(y, m, exec_day, 0, 0, 0))
+                        
+                        PersonalExpense.objects.create(
+                            user=user, 
+                            amount=item.amount, 
+                            category="Income" if is_income else "Others",
+                            payment_method=item.payment_method, 
+                            account=item.account,
+                            description=f"Fixed {'Income' if is_income else 'Expense'}: {item.name}",
+                            date=process_date, 
+                            month=m, 
+                            year=y, 
+                            is_recurring=True
                         )
                         
-                        # Fetch active recurring items
-                        active_incomes = RecurringIncome.objects.filter(user=user, is_active=True)
-                        active_expenses = RecurringExpense.objects.filter(user=user, is_active=True)
+                        item.last_processed_year = y
+                        item.last_processed_month = m
+                        item.save()
 
-                        # First day of that month in UTC/aware datetime
-                        process_date = django_timezone.make_aware(datetime(y, m, 1, 0, 0, 0))
-
-                        # Insert income entries
-                        for inc in active_incomes:
-                            PersonalExpense.objects.create(
-                                user=user, amount=inc.amount, category="Income",
-                                payment_method=inc.payment_method, account=inc.account,
-                                description=f"Fixed Income: {inc.name}",
-                                date=process_date, month=m, year=y, is_recurring=True
-                            )
-
-                        # Insert expense entries
-                        for exp in active_expenses:
-                            PersonalExpense.objects.create(
-                                user=user, amount=exp.amount, category="Others",
-                                payment_method=exp.payment_method, account=exp.account,
-                                description=f"Fixed Expense: {exp.name}",
-                                date=process_date, month=m, year=y, is_recurring=True
-                            )
-                except IntegrityError:
-                    # A concurrent process already created the MonthlyRecurringProcessing record
-                    pass
-
-            # Advance one month
-            m += 1
-            if m > 12:
-                m = 1
-                y += 1
+                        m += 1
+                        if m > 12:
+                            m = 1
+                            y += 1
     except Exception as e:
         print("Error processing recurring monthly finance:", e)
 
@@ -90,12 +80,21 @@ def recalculate_current_month(user):
                 is_recurring=True
             ).delete()
 
-            # Delete current month's processing record
-            MonthlyRecurringProcessing.objects.filter(
-                user=user,
-                month=curr_month,
-                year=curr_year
-            ).delete()
+            # Roll back last_processed to previous month so they re-trigger if applicable
+            for ItemModel in [RecurringIncome, RecurringExpense]:
+                items = ItemModel.objects.filter(
+                    user=user, 
+                    is_active=True,
+                    last_processed_year=curr_year,
+                    last_processed_month=curr_month
+                )
+                for item in items:
+                    if curr_month == 1:
+                        item.last_processed_month = 12
+                        item.last_processed_year = curr_year - 1
+                    else:
+                        item.last_processed_month = curr_month - 1
+                    item.save()
 
         # Re-process
         process_recurring_finance(user)
