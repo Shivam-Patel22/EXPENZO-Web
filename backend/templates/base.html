@@ -14,6 +14,10 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- Global Loader Overlay -->
+    <div id="global-loader" class="global-loader">
+        <div class="loader-spinner"></div>
+    </div>
     <div class="app-container">
         {% if user.is_authenticated %}
         <!-- Sidebar Navigation -->
@@ -152,6 +156,41 @@
         });
     </script>
     <script src="{% static 'js/custom-calendar.js' %}?v=1.0"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loader = document.getElementById('global-loader');
+            
+            // Show loader on link clicks
+            document.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const href = link.getAttribute('href');
+                    if (href && !href.startsWith('#') && !href.startsWith('javascript') && link.target !== '_blank') {
+                        // Prevent triggering if opening in new tab
+                        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                            // Small timeout to prevent flashing on instant loads
+                            setTimeout(() => {
+                                loader.classList.add('active');
+                            }, 100);
+                        }
+                    }
+                });
+            });
+
+            // Show loader on form submits
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', () => {
+                    loader.classList.add('active');
+                });
+            });
+            
+            // Hide loader when navigating back via browser history
+            window.addEventListener('pageshow', (e) => {
+                if (e.persisted) {
+                    loader.classList.remove('active');
+                }
+            });
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
