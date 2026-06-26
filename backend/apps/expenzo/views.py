@@ -382,21 +382,19 @@ def group_detail_view(request, group_id):
         return render(request, '403.html', status=403)
     user_role = membership.role
         
+    error_message = None
     # Handle adding new member
     if request.method == 'POST' and 'new_member_email' in request.POST:
         if user_role != 'ADMIN':
-            context = {'group': group, 'error': "Only Admins can add members."}
-            return render(request, 'group_detail.html', context)
-            
-        email = strip_tags(request.POST.get('new_member_email', '')).strip()[:200]
-        to_add = get_object_or_none(User, email=email)
-        if to_add:
-            GroupMember.objects.get_or_create(group=group, user=to_add)
+            error_message = "Only Admins can add members."
         else:
-            context = {'group': group, 'error': f"User with email '{email}' not found."}
-            # reload data for rendering
-            return render(request, 'group_detail.html', context)
-        return redirect('group_detail', group_id=group.id)
+            email = strip_tags(request.POST.get('new_member_email', '')).strip()[:200]
+            to_add = get_object_or_none(User, email=email)
+            if to_add:
+                GroupMember.objects.get_or_create(group=group, user=to_add)
+                return redirect('group_detail', group_id=group.id)
+            else:
+                error_message = f"User with email '{email}' not found."
         
     memberships = GroupMember.objects.filter(group=group).select_related('user', 'user__profile')
     members = [m.user for m in memberships]
@@ -645,6 +643,7 @@ def group_detail_view(request, group_id):
         'categories': categories,
         'search_query': search_query,
         'selected_category': category_filter,
+        'error': error_message,
     }
     return render(request, 'group_detail.html', context)
 
