@@ -869,7 +869,7 @@ def add_group_expense_api(request, group_id):
                 return JsonResponse({'error': 'At least one person must be involved in the split to avoid division by zero.'}, status=400)
                 
             # IDOR check: Verify all participants are in the group
-            participant_ids = set([p['userId'] for p in payers] + [s['userId'] for s in splits_data])
+            participant_ids = set([int(p['userId']) for p in payers] + [int(s['userId']) for s in splits_data])
             valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
             for uid in participant_ids:
                 if uid not in valid_member_ids:
@@ -987,7 +987,7 @@ def edit_group_expense_api(request, group_id, expense_id):
                 return JsonResponse({'error': 'At least one person must be involved in the split to avoid division by zero.'}, status=400)
                 
             # IDOR check: Verify all participants are in the group
-            participant_ids = set([p['userId'] for p in payers] + [s['userId'] for s in splits_data])
+            participant_ids = set([int(p['userId']) for p in payers] + [int(s['userId']) for s in splits_data])
             valid_member_ids = set(GroupMember.objects.filter(group=group).values_list('user_id', flat=True))
             for uid in participant_ids:
                 if uid not in valid_member_ids:
