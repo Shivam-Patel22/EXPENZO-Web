@@ -1169,21 +1169,10 @@ def login_view(request):
     if request.method == 'POST':
         email = strip_tags(request.POST.get('email', '')).strip()[:200]
         password = request.POST.get('password')
-        
-        # Rate Limiting Logic (Lockout 15 minutes after 5 failed attempts)
-        ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
-        cache_key = f"login_attempts_{ip}"
-        attempts = cache.get(cache_key, 0)
-        
-        if attempts >= 5:
-            logger.warning(f"SECURITY: IP {ip} locked out after multiple failed login attempts.")
-            return render(request, 'login.html', {'error': 'Too many failed login attempts. Please try again in 15 minutes.'})
-            
         user = authenticate(request, username=email, password=password)
         if user is not None:
-            cache.delete(cache_key) # Reset attempts on success
             login(request, user)
-            logger.warning(f"SECURITY: Successful login for {email} from IP {ip}.")
+            logger.warning(f"SECURITY: Successful login for {email}.")
             return redirect('dashboard')
         else:
             # Check if it failed because the user is inactive
@@ -1191,8 +1180,7 @@ def login_view(request):
             if user_obj and not user_obj.is_active and user_obj.check_password(password):
                 return render(request, 'login.html', {'error': 'Account is not activated. Please check your email inbox for the activation link.'})
                 
-            cache.set(cache_key, attempts + 1, timeout=900) # 15 minutes lock
-            logger.warning(f"SECURITY: Failed login attempt for {email} from IP {ip}.")
+            logger.warning(f"SECURITY: Failed login attempt for {email}.")
             return render(request, 'login.html', {'error': 'Invalid credentials'})
     return render(request, 'login.html')
 

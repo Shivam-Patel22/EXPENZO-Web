@@ -40,13 +40,20 @@
 
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input
-          type="password"
-          name="password"
-          class="input-control"
-          placeholder="••••••••"
-          required
-        />
+        <div style="position: relative;">
+          <input
+            type="password"
+            name="password"
+            id="login-password"
+            class="input-control"
+            placeholder="••••••••"
+            required
+            style="padding-right: 2.5rem;"
+          />
+          <button type="button" onclick="togglePassword('login-password', this)" style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0; display: flex;">
+            <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
       </div>
 
       <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1.5rem;">
@@ -60,4 +67,19 @@
     </form>
   </div>
 </div>
+<script>
+function togglePassword(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.innerHTML = '<i data-lucide="eye-off" style="width: 18px; height: 18px;"></i>';
+  } else {
+    input.type = 'password';
+    btn.innerHTML = '<i data-lucide="eye" style="width: 18px; height: 18px;"></i>';
+  }
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+}
+</script>
 {% endblock %}
