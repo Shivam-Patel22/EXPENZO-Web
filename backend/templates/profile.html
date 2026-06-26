@@ -72,19 +72,25 @@
   <!-- Edit Details Form -->
   <div class="glass-card" style="padding: 2rem;">
     <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text-primary);">Edit Profile Details</h3>
-    <form method="POST" action="{% url 'profile' %}" enctype="multipart/form-data">
+    <form id="profile-form" method="POST" action="{% url 'profile' %}" enctype="multipart/form-data">
       {% csrf_token %}
       
 
 
       <input type="hidden" name="avatar_base64" id="avatar_base64_input" value="">
+      <input type="hidden" name="remove_avatar" id="remove_avatar_input" value="false">
       <div class="form-group">
         <label class="form-label">Profile Photo</label>
-        <input type="file" id="avatar_file_input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
-        <button type="button" onclick="document.getElementById('avatar_file_input').click()" class="btn btn-secondary" style="width: 100%; padding: 0.75rem; border-radius: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-          <i data-lucide="upload" style="width: 18px; height: 18px;"></i>
-          Choose Image
-        </button>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="file" id="avatar_file_input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(this)">
+          <button type="button" onclick="document.getElementById('avatar_file_input').click()" class="btn btn-secondary" style="flex: 1; padding: 0.75rem; border-radius: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <i data-lucide="upload" style="width: 18px; height: 18px;"></i>
+            Choose Image
+          </button>
+          <button type="button" onclick="removeAvatar()" class="btn btn-secondary" style="padding: 0.75rem; border-radius: 12px; background: rgba(244, 63, 94, 0.05); color: #f43f5e; border: 1px dashed rgba(244, 63, 94, 0.3); display: flex; align-items: center; justify-content: center;" title="Remove Photo">
+            <i data-lucide="trash" style="width: 18px; height: 18px;"></i>
+          </button>
+        </div>
       </div>
 
       <div class="form-group">
@@ -135,6 +141,35 @@
     </form>
   </div>
 
+  <!-- Danger Zone -->
+  <div class="glass-card" style="padding: 2rem; margin-top: 2rem; border-color: rgba(244, 63, 94, 0.3);">
+    <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: #f43f5e;">Danger Zone</h3>
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+      Deleting your account is permanent. All your personal expenses, recurring setups, groups created, group memberships, and splits will be completely and irrevocably removed from the database.
+    </p>
+    <button type="button" onclick="deleteAccount()" class="btn" style="width: 100%; padding: 0.75rem; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: rgba(244, 63, 94, 0.1); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3);">
+      <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+      Delete Account
+    </button>
+  </div>
+
+  <!-- Generic Delete Modal -->
+  <div class="modal-overlay" id="delete-modal" style="display: none; align-items: center; justify-content: center; z-index: 1000;">
+    <div class="modal-content" style="max-width: 400px; padding: 2rem;">
+      <div style="text-align: center;">
+        <i data-lucide="alert-triangle" style="width: 48px; height: 48px; color: var(--accent-danger); margin-bottom: 1rem;"></i>
+        <h3 id="delete-modal-title" style="margin-bottom: 0.5rem; color: var(--text-primary); font-size: 1.25rem;">Confirm Action</h3>
+        <p id="delete-modal-message" style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
+          Are you sure you want to proceed? This action cannot be undone.
+        </p>
+      </div>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()" style="flex: 1;">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirm-delete-btn" style="flex: 1; background: var(--accent-danger); border-color: var(--accent-danger);">Delete</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
@@ -172,15 +207,8 @@
           const dataUrl = canvas.toDataURL('image/webp', 0.8);
           document.getElementById('avatar_base64_input').value = dataUrl;
           
-          const previewImg = document.getElementById('avatar-preview-img');
-          const previewSvg = document.getElementById('avatar-preview-svg');
-          if (previewImg) {
-            previewImg.src = dataUrl;
-            previewImg.style.display = 'block';
-          }
-          if (previewSvg) {
-            previewSvg.style.display = 'none';
-          }
+          // Instantly apply changes
+          document.getElementById('profile-form').submit();
         }
         img.src = e.target.result;
       }
@@ -188,6 +216,13 @@
     }
   }
 
+  function removeAvatar() {
+    document.getElementById('remove_avatar_input').value = 'true';
+    document.getElementById('avatar_base64_input').value = '';
+    
+    // Instantly apply changes
+    document.getElementById('profile-form').submit();
+  }
 
   async function changePassword(event) {
     event.preventDefault();
@@ -233,6 +268,58 @@
       btn.innerHTML = `<i data-lucide="lock" style="width: 18px; height: 18px;"></i> Update Password`;
       lucide.createIcons();
     }
+  }
+
+  let deleteActionCallback = null;
+
+  function openGenericDeleteModal(title, message, callback) {
+    document.getElementById('delete-modal-title').innerText = title;
+    document.getElementById('delete-modal-message').innerText = message;
+    deleteActionCallback = callback;
+    document.getElementById('delete-modal').style.display = 'flex';
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('delete-modal').style.display = 'none';
+    deleteActionCallback = null;
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        if (deleteActionCallback) {
+          deleteActionCallback();
+          closeDeleteModal();
+        }
+      });
+    }
+  });
+
+  function deleteAccount() {
+    openGenericDeleteModal(
+      'Delete Account',
+      'Are you absolutely sure you want to delete your account? This action cannot be undone and ALL your data will be permanently deleted.',
+      async () => {
+        try {
+          const response = await fetch('{% url "api_delete_account" %}', {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+          });
+          
+          const data = await response.json();
+          if (data.status === 'success') {
+            window.location.href = '{% url "login" %}';
+          } else {
+            alert(data.message);
+          }
+        } catch (err) {
+          alert("An error occurred while deleting your account.");
+        }
+      }
+    );
   }
 </script>
 {% endblock %}

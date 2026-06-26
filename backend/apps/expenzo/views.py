@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate, logout, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone as django_timezone
 from django.db.models import Q
@@ -665,6 +665,7 @@ def profile_view(request):
         # Handle avatar removal
         if request.POST.get('remove_avatar') == 'true':
             profile.avatar = ''
+            profile.avatar_base64 = ''
             
         selected_avatar = strip_tags(request.POST.get('avatar', ''))
         if selected_avatar and selected_avatar.startswith('avatar-'):
@@ -1248,6 +1249,15 @@ def edit_group_api(request, group_id):
                 body = json.loads(request.body)
                 name = strip_tags(body.get('name', '')).strip()[:100]
                 description = strip_tags(body.get('description', '')).strip()[:500]
+                
+                if body.get('remove_icon') == 'true':
+                    group.icon = ''
+                    group.icon_base64 = ''
+                
+                icon = body.get('icon')
+                if icon:
+                    group.icon = icon[:255]
+                
                 icon_base64 = body.get('icon_base64')
                 if icon_base64:
                     group.icon_base64 = icon_base64
@@ -1261,8 +1271,6 @@ def edit_group_api(request, group_id):
             group.name = name
             group.description = description
             
-
-
             group.save()
             return JsonResponse({'status': 'success'})
         except Exception as e:
@@ -1357,3 +1365,16 @@ def api_change_password(request):
     except Exception as e:
         logger.error(f"Password change error for {request.user.username}: {str(e)}")
         return JsonResponse({'status': 'error', 'message': 'An error occurred while changing password.'})
+
+@login_required
+@require_http_methods(["POST", "DELETE"])
+def api_delete_account(request):
+    try:
+        user = request.user
+        # Django's cascade delete handles everything: personal expenses, recurring setups, groups created, memberships, splits.
+        user.delete()
+        logout(request)
+        return JsonResponse({'status': 'success', 'message': 'Account deleted successfully.'})
+    except Exception as e:
+        logger.error(f"Error deleting account for {request.user.username}: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': 'Failed to delete account. Please try again.'})

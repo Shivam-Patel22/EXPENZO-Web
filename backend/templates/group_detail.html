@@ -632,11 +632,17 @@
           <div class="form-group" style="margin-top: 1rem;">
             <label class="form-label">Or Upload Custom Image</label>
             <input type="hidden" id="edit-group-icon-base64" value="">
-            <input type="file" id="group_icon_file_input" accept="image/*" style="display: none;" onchange="handleGroupIconUpload(this)">
-            <button type="button" onclick="document.getElementById('group_icon_file_input').click()" class="btn btn-secondary" style="width: 100%; padding: 0.75rem; border-radius: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-              <i data-lucide="upload" style="width: 18px; height: 18px;"></i>
-              Choose Custom Image
-            </button>
+            <input type="hidden" id="edit-remove-group-icon" value="false">
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="file" id="group_icon_file_input" accept="image/*" style="display: none;" onchange="handleGroupIconUpload(this)">
+              <button type="button" onclick="document.getElementById('group_icon_file_input').click()" class="btn btn-secondary" style="flex: 1; padding: 0.75rem; border-radius: 12px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                <i data-lucide="upload" style="width: 18px; height: 18px;"></i>
+                Choose Custom Image
+              </button>
+              <button type="button" onclick="removeGroupIcon()" class="btn btn-secondary" style="padding: 0.75rem; border-radius: 12px; background: rgba(244, 63, 94, 0.05); color: #f43f5e; border: 1px dashed rgba(244, 63, 94, 0.3); display: flex; align-items: center; justify-content: center;" title="Remove Custom Image">
+                <i data-lucide="trash" style="width: 18px; height: 18px;"></i>
+              </button>
+            </div>
             <img id="group-icon-preview" src="" style="width: 60px; height: 60px; border-radius: 12px; object-fit: cover; margin-top: 10px; display: none; margin-left: auto; margin-right: auto;">
           </div>
           <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
@@ -1290,20 +1296,29 @@
           const dataUrl = canvas.toDataURL('image/webp', 0.8);
           document.getElementById('edit-group-icon-base64').value = dataUrl;
           
-          const previewImg = document.getElementById('group-icon-preview');
-          if (previewImg) {
-            previewImg.src = dataUrl;
-            previewImg.style.display = 'block';
-          }
-          
           // Uncheck radios
           const radios = document.querySelectorAll('input[name="edit-icon"]');
           radios.forEach(r => r.checked = false);
+          
+          // Instantly apply changes
+          submitEditGroup(new Event('submit'));
         }
         img.src = e.target.result;
       }
       reader.readAsDataURL(file);
     }
+  }
+
+  function removeGroupIcon() {
+    document.getElementById('edit-remove-group-icon').value = 'true';
+    document.getElementById('edit-group-icon-base64').value = '';
+    
+    // Uncheck radios
+    const radios = document.querySelectorAll('input[name="edit-icon"]');
+    radios.forEach(r => r.checked = false);
+    
+    // Instantly apply changes
+    submitEditGroup(new Event('submit'));
   }
 
   function closeEditGroupModal() {
@@ -1315,6 +1330,7 @@
     const name = document.getElementById('edit-group-name').value;
     const description = document.getElementById('edit-group-desc').value;
     const icon_base64 = document.getElementById('edit-group-icon-base64').value;
+    const remove_icon = document.getElementById('edit-remove-group-icon').value;
     const iconRadio = document.querySelector('input[name="edit-icon"]:checked');
     const icon = iconRadio ? iconRadio.value : '';
     
@@ -1325,7 +1341,7 @@
           'Content-Type': 'application/json',
           'X-CSRFToken': '{{ csrf_token }}'
         },
-        body: JSON.stringify({ name, description, icon_base64, icon })
+        body: JSON.stringify({ name, description, icon_base64, icon, remove_icon })
       });
       if (res.ok) {
         window.location.reload();

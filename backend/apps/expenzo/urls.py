@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/expenses/add/', views.add_expense_api, name='api_add_expense'),
     path('api/expenses/edit/<int:expense_id>/', views.edit_expense_api, name='api_edit_expense'),
     path('api/profile/change-password/', views.api_change_password, name='api_change_password'),
+    path('api/profile/delete-account/', views.api_delete_account, name='api_delete_account'),
     path('api/expenses/delete/<int:expense_id>/', views.delete_expense_api, name='api_delete_expense'),
     path('api/recurring/delete/<int:item_id>/<str:item_type>/', views.delete_recurring_api, name='api_delete_recurring'),
     path('api/recurring/edit/<int:item_id>/<str:item_type>/', views.edit_recurring_api, name='api_edit_recurring'),
