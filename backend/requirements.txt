@@ -2,3 +2,7 @@ Django>=5.0
 matplotlib>=3.8
 seaborn>=0.13
 python-dotenv>=1.0.0
+gunicorn>=21.2.0
+whitenoise[brotli]>=6.6.0
+dj-database-url>=2.1.0
+psycopg2-binary>=2.9.9
